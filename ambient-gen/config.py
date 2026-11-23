@@ -90,3 +90,6 @@ EQ = {
                ("peak", 350, -3.0, 0.9)],
     "master": [("hp", 25, 0, 0.7)],
 }
+
+# --- Kehangatan analog (fx.Warmth) ---
+WARMTH = dict(amount=0.0, tape=0.0, noise=0.0)

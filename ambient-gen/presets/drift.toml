@@ -38,3 +38,6 @@ target_lufs = -14.0   # YouTube
 reverb_decay = 9.0
 reverb_mix = 0.45
 delay_feedback = 0.35
+
+[warmth]
+amount = 0.6

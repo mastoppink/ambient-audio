@@ -49,3 +49,6 @@ target_lufs = -15.0
 
 [qc]
 profile = "calm"
+
+[warmth]
+amount = 0.65  # sendu: sedikit lebih "kaset"

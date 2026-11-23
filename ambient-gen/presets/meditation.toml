@@ -44,3 +44,6 @@ profile = "calm"
 
 [variation]
 amount = 0.25
+
+[warmth]
+noise = 0.05   # hampir tanpa desis: untuk tidur/meditasi

@@ -470,3 +470,112 @@ try:   # inti FDN per sampel dikompilasi numba (puluhan kali lebih cepat); tanpa
 except ImportError:  # pragma: no cover
     _fdn_numba = None
     _allpass_numba = None
+
+
+# ---------- kehangatan analog (meniru pita kaset), streaming ----------
+class Warmth:
+    """Saturasi pita + wow/flutter + warna nada pita + desis halus. Dipasang pada mix sebelum master.
+
+    amount (0..1): saturasi lembut (harmonik ke-2 dan ke-3) dan warna nada pita (bass sedikit naik di
+        ~90 Hz, treble dilunakkan). Saturasi dihitung relatif terhadap level musik jangka panjang
+        (follower RMS ~8 detik), jadi karakternya sama di bagian pelan maupun penuh.
+    tape (0..1): wow (~0,4-0,7 Hz, sampai ~3 cent) dan flutter (~6 Hz, sampai ~0,5 cent) lewat delay
+        yang dimodulasi, sama di kedua kanal seperti pita sungguhan.
+    noise (0..1): desis pita, 0 = mati, 1 = -50 dB relatif terhadap level musik.
+    """
+
+    def __init__(self, amount, tape, noise, rng):
+        a = float(amount)
+        self.k = 0.06 + 0.22 * a          # kekuatan lengkung saturasi pada sinyal yang dinormalkan
+        self.bias = 0.25 * a              # asimetri -> harmonik genap (ke-2): "hangat"
+        self.on = a > 0
+        self.env = None
+        self.coef = np.exp(-1 / (8.0 * SR))
+        self.tone = StreamEQ([("lowshelf", 90, 1.2 * a, 0.7), ("highshelf", 9000, -2.5 * a, 0.7),
+                              ("lp", 18500 - 5000 * a, 0, 0.7)]) if a > 0 else None
+        # wow & flutter
+        t = float(tape)
+        wow_f, flut_f = rng.uniform(0.4, 0.7), rng.uniform(5.5, 7.0)
+        self.wow = (3.0 * t * 1e-3 * np.log(2) / 1.2) / (2 * np.pi * wow_f) * SR   # amplitudo (sampel)
+        self.flut = (0.5 * t * 1e-3 * np.log(2) / 1.2) / (2 * np.pi * flut_f) * SR
+        self.wf, self.ff = wow_f, flut_f
+        self.wph, self.fph = rng.uniform(0, 2 * np.pi, 2)
+        self.drift_f = rng.uniform(0.05, 0.12, 2)   # wow tidak sempurna: dua sinus lambat tambahan
+        self.drift_ph = rng.uniform(0, 2 * np.pi, 2)
+        self.D0 = self.wow * 1.6 + self.flut + 8
+        self.dbuf = np.zeros((1 << 12, 2))
+        self.w = 0
+        self.n = 0
+        # desis
+        self.noise_g = 0.0 if noise <= 0 else 10 ** ((-62 + 12 * float(noise)) / 20)
+        self.nrng = np.random.default_rng(rng.integers(1 << 31))
+        self.nflt = StreamEQ([("hp", 400, 0, 0.7), ("lp", 11000, 0, 0.7), ("highshelf", 4000, 3, 0.7)])
+
+    def _level(self, x):
+        """Follower RMS jangka panjang (per sampel, state dibawa antar potongan)."""
+        e = (x ** 2).mean(axis=1)
+        if self.env is None:
+            self.env = max(float(e.mean()), 1e-8)
+        y, zf = lfilter([1 - self.coef], [1, -self.coef], e, zi=[self.env * self.coef])
+        self.env = float(y[-1])
+        return np.sqrt(np.maximum(y, 1e-10))[:, None]
+
+    def __call__(self, x):
+        if not self.on and self.wow == 0 and self.noise_g == 0:
+            return x
+        ref = self._level(x)
+        if self.on:   # saturasi lembut asimetris, kemiringan 1 di titik nol (level kecil tidak berubah)
+            u = x / ref
+            k, b = self.k, self.bias
+            tb = np.tanh(k * b)
+            y = (np.tanh(k * (u + b)) - tb) / (k * (1 - tb * tb))
+            x = y * ref
+        if self.wow > 0:
+            out = np.empty_like(x)
+            self.w, self.n = _vardelay(np.ascontiguousarray(x), out, self.dbuf, self.w, self.n, self.D0,
+                                       self.wow, self.wf, self.wph, self.flut, self.ff, self.fph,
+                                       self.drift_f, self.drift_ph, float(SR))
+            x = out
+        if self.tone is not None:
+            x = self.tone(x)
+        if self.noise_g > 0:
+            hiss = self.nflt(self.nrng.standard_normal(x.shape))
+            x = x + hiss * ref * self.noise_g
+        return x
+
+
+try:
+    from numba import njit as _njit
+
+    @_njit(cache=True, fastmath=True)
+    def _vardelay(x, out, buf, w, n, D0, wow, wf, wph, flut, ff, fph, dfr, dph, sr):
+        S = buf.shape[0]
+        mask = S - 1
+        tp = 2.0 * np.pi
+        for k in range(x.shape[0]):
+            t = (n + k) / sr
+            m = wow * (np.sin(tp * wf * t + wph) * 0.8 + 0.12 * np.sin(tp * dfr[0] * t + dph[0])
+                       + 0.08 * np.sin(tp * dfr[1] * t + dph[1])) + flut * np.sin(tp * ff * t + fph)
+            buf[w & mask, 0] = x[k, 0]
+            buf[w & mask, 1] = x[k, 1]
+            pos = w - D0 - m
+            i0 = int(np.floor(pos))
+            fr = pos - i0
+            for c in range(2):
+                out[k, c] = buf[i0 & mask, c] * (1.0 - fr) + buf[(i0 + 1) & mask, c] * fr
+            w = (w + 1) & mask
+        return w, n + x.shape[0]
+except ImportError:  # pragma: no cover
+    def _vardelay(x, out, buf, w, n, D0, wow, wf, wph, flut, ff, fph, dfr, dph, sr):
+        S = buf.shape[0]
+        for k in range(x.shape[0]):
+            t = (n + k) / sr
+            m = wow * (np.sin(2 * np.pi * wf * t + wph) * 0.8 + 0.12 * np.sin(2 * np.pi * dfr[0] * t + dph[0])
+                       + 0.08 * np.sin(2 * np.pi * dfr[1] * t + dph[1])) + flut * np.sin(2 * np.pi * ff * t + fph)
+            buf[w % S] = x[k]
+            pos = w - D0 - m
+            i0 = int(np.floor(pos))
+            fr = pos - i0
+            out[k] = buf[i0 % S] * (1 - fr) + buf[(i0 + 1) % S] * fr
+            w = (w + 1) % S
+        return w, n + x.shape[0]

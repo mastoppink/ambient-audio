@@ -102,3 +102,11 @@ Dinormalkan ke energi impuls 1 (setara IR konvolusi). Inti per sampel dikompilas
 Diukur terhadap reverb konvolusi lama (chord 3 detik lalu hening): gerak spektrum ekor 13-21× lebih besar,
 kerapatan gema penuh dalam 105 ms, keseimbangan pita frekuensi mix dalam ±2 dB, waktu render sama.
 Versi web masih memakai konvolusi.
+
+## Kehangatan analog (`[warmth]`)
+
+`fx.Warmth` dipasang pada mix sebelum master: saturasi tanh asimetris relatif terhadap level jangka panjang
+(follower RMS 8 s), wow (0,4-0,7 Hz) & flutter (~6 Hz) lewat delay bermodulasi (numba), warna nada pita
+(low-shelf +1,2·amount dB di 90 Hz, high-shelf -2,5·amount dB di 9 kHz, lowpass), dan desis pita relatif.
+Terukur: harmonik ke-2/ke-3 -62/-52 dB (amount 0,3) sampai -38 dB (amount 1); wow ±1,5 cent (tape 0,5);
+desis -60 dB relatif musik (noise 0,25). Pada mix Nebula: pita frekuensi berubah ≤ 0,8 dB, true peak turun ~1 dB.

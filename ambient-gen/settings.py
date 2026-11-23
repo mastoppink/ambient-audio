@@ -69,6 +69,11 @@ DEFAULTS = {
         "bright": 0.8,               # seberapa jauh intensitas membuka filter pad (oktaf)
     },
     "master": {"target_lufs": -16.0},
+    "warmth": {                      # kehangatan analog (meniru pita kaset)
+        "amount": 0.5,               # 0 bersih digital .. 1 jelas "kaset" (saturasi + warna nada)
+        "tape": 0.5,                 # 0 .. 1 goyangan pita (wow & flutter), 0.5 = +-1,5 cent
+        "noise": 0.25,               # 0 = tanpa desis .. 1 desis pita terdengar (-50 dB)
+    },
     "variation": {"amount": 0.5},    # 0 = tanpa babak & chord tambahan .. 1 = banyak perubahan
     "qc": {"profile": "default"},    # default / calm / sleep
 }
@@ -193,6 +198,7 @@ def apply(r):
 
     fm = r["form"]
     config.VARIATION = float(r["variation"]["amount"])
+    config.WARMTH = {k: float(r["warmth"][k]) for k in ("amount", "tape", "noise")}
     config.PAD["shape_bright"] = fm["amount"] * fm["bright"]
     tb = r["texture"]["brightness"]
     config.TEXTURE = dict(config.TEXTURE, level=mix["texture"], shape_amount=fm["amount"],

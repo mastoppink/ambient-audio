@@ -49,3 +49,6 @@ type = ["calm", "arc", "valley"]   # bentuk lagu yang tenang saja
 
 [variation]
 amount = 0.3   # perubahan antar babak tipis, supaya tetap menenangkan
+
+[warmth]
+noise = 0.05   # hampir tanpa desis: untuk tidur/meditasi
