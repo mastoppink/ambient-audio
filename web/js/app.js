@@ -146,11 +146,17 @@ function fileName() {
 
 // ---------- pemutaran ----------
 async function togglePlay() {
-  if (engine) { engine.stop(); engine = null; clearInterval(timer); $("#play").textContent = "▶ Putar"; $("#play").classList.remove("on"); return; }
+  if (engine) { engine.stop(); engine = null; clearInterval(timer); setPlayButton(false); return; }
   ctx ??= new AudioContext({ sampleRate: SR, latencyHint: "playback" });
   await ctx.resume();
   startEngine(false);
-  $("#play").textContent = "■ Berhenti"; $("#play").classList.add("on");
+  setPlayButton(true);
+}
+
+function setPlayButton(on) {
+  const b = $("#play");
+  b.innerHTML = `<svg class="ic"><use href="#i-${on ? "stop" : "play"}"/></svg><span>${on ? "Berhenti" : "Putar"}</span>`;
+  b.classList.toggle("on", on);
 }
 
 const agc = { hist: [], gainDb: 0 };
@@ -223,22 +229,37 @@ function describeSection(s) {
 }
 
 function drawLoop() {
+  // spektrum sebagai satu garis tipis di atas grid frekuensi (100 Hz, 1 kHz, 10 kHz)
   const cv = $("#viz"), g = cv.getContext("2d");
+  const css = getComputedStyle(document.documentElement);
+  const color = (v) => css.getPropertyValue(v).trim();
+  const fx = (f, w) => (Math.log(f / 30) / Math.log(16000 / 30)) * w;
   const draw = () => {
-    const w = (cv.width = cv.clientWidth * devicePixelRatio), h = (cv.height = cv.clientHeight * devicePixelRatio);
+    const dpr = devicePixelRatio || 1;
+    const w = (cv.width = cv.clientWidth * dpr), h = (cv.height = cv.clientHeight * dpr);
     g.clearRect(0, 0, w, h);
+    g.font = `${10 * dpr}px "IBM Plex Mono", monospace`;
+    g.fillStyle = color("--ink-3"); g.strokeStyle = color("--line"); g.lineWidth = 1;
+    for (const [f, lab] of [[100, "100 Hz"], [1000, "1 kHz"], [10000, "10 kHz"]]) {
+      const x = Math.round(fx(f, w)) + 0.5;
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+      const tw = g.measureText(lab).width;
+      g.fillText(lab, x + 6 * dpr + tw > w ? x - 6 * dpr - tw : x + 6 * dpr, h - 8 * dpr);
+    }
     if (engine && meter) {
       const a = meter.viz, d = new Float32Array(a.frequencyBinCount);
       a.getFloatFrequencyData(d);
-      const grad = g.createLinearGradient(0, h, 0, 0);
-      grad.addColorStop(0, "rgba(120,140,255,0.05)"); grad.addColorStop(1, "rgba(190,160,255,0.55)");
-      g.fillStyle = grad; g.beginPath(); g.moveTo(0, h);
-      for (let x = 0; x < w; x += 2) {
-        const f = 30 * (16000 / 30) ** (x / w), i = Math.min(d.length - 1, Math.round((f / (SR / 2)) * d.length));
-        const y = h - ((Math.max(-110, d[i]) + 110) / 85) * h;
-        g.lineTo(x, y);
+      g.beginPath();
+      for (let x = 0; x <= w; x += 2) {
+        // rata-rata energi dalam jendela 1/6 oktaf -> garis halus, bukan sisir harmonik
+        const f = 30 * (16000 / 30) ** (x / w), bin = (SR / 2) / d.length;
+        const i0 = Math.max(0, Math.floor((f * 2 ** (-1 / 12)) / bin)), i1 = Math.min(d.length - 1, Math.ceil((f * 2 ** (1 / 12)) / bin));
+        let e = 0; for (let i = i0; i <= i1; i++) e += 10 ** (d[i] / 10);
+        const db = 10 * Math.log10(e / (i1 - i0 + 1) + 1e-12);
+        const y = h - ((Math.max(-110, db) + 110) / 85) * h;
+        x === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
       }
-      g.lineTo(w, h); g.closePath(); g.fill();
+      g.strokeStyle = color("--accent"); g.lineWidth = 1.5 * dpr; g.stroke();
     }
     requestAnimationFrame(draw);
   };
