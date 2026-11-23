@@ -73,11 +73,40 @@ def chord_progression(total, rng):
     return out
 
 
-def compose(total, rng):
+def melody(total, rng, chords):
+    """Nada jarang: random walk berbobot pada skala, condong ke nada chord yang sedang bunyi."""
+    p = config.MELODY
+    lo, hi = p["range"]
+    pool = [m for m in range(lo, hi + 1)
+            if (m - config.TONIC_MIDI) % 12 in config.SCALE]
+    idx = len(pool) // 2
+    t = rng.uniform(*p["gap"]) * 0.6
+    out = []
+    while t < total - 8:
+        step = rng.choice([-2, -1, 1, 2, 3, -3, 0], p=[.2, .25, .25, .15, .05, .05, .05])
+        idx = int(np.clip(idx + step, 0, len(pool) - 1))
+        cur = [c for c in chords if c[0] <= t][-1]
+        chord_pcs = {n % 12 for n in cur[3]}
+        if pool[idx] % 12 not in chord_pcs and rng.random() < 0.6:
+            near = [i for i in range(len(pool)) if pool[i] % 12 in chord_pcs]
+            idx = min(near, key=lambda i: abs(i - idx))
+        dur = min(p["decay"] * 2.5, total - t)
+        out.append(Event(round(t, 3), round(dur, 3), pool[idx], "melody", cur[2]))
+        gap = rng.uniform(*p["gap"])
+        if rng.random() < p["rest_prob"]:
+            gap += rng.uniform(10, 30)
+        t += gap
+    return out
+
+
+def compose(total, rng, with_melody=False):
     events = [Event(0.0, total, m, "drone", "drone") for m in config.DRONE_NOTES]
-    for start, dur, name, notes in chord_progression(total, rng):
+    chords = chord_progression(total, rng)
+    for start, dur, name, notes in chords:
         dur = min(dur, total - start)
         events += [Event(round(start, 3), round(dur, 3), m, "pad", name) for m in notes]
+    if with_melody:
+        events += melody(total, rng, chords)
     return events
 
 

@@ -17,3 +17,13 @@ def test_deterministic():
     a = pad_voice(50, 1.0, np.random.default_rng(7), config.PAD)
     b = pad_voice(50, 1.0, np.random.default_rng(7), config.PAD)
     assert np.array_equal(a, b)
+
+
+def test_limiter_ceiling_no_gain():
+    from fx import limiter
+    rng = np.random.default_rng(0)
+    x = rng.standard_normal((48000, 2)) * 0.5
+    y = limiter(x, -1.0)
+    assert np.abs(y).max() <= 10 ** (-1 / 20) + 1e-9
+    quiet = x * 0.01
+    assert np.allclose(limiter(quiet, -1.0), quiet)  # sinyal pelan tidak berubah

@@ -114,3 +114,56 @@ def pad_voice(midi, duration, rng, p):
     out = np.stack(chans, axis=1)
     out *= envelope(n, p["attack"], p["release"])[:, None]
     return out
+
+
+def bell_voice(midi, duration, rng, attack, decay, pan):
+    """Nada melodi lembut: sinus + sedikit harmonik, decay eksponensial."""
+    n = int(duration * SR)
+    f0 = midi_to_hz(midi)
+    t = np.arange(n) / SR
+    x = (sine(f0 * 2 ** (rng.uniform(-3, 3) / 1200), n, rng.uniform(0, 6.28))
+         + 0.3 * sine(f0 * 2, n, rng.uniform(0, 6.28)) * np.exp(-t / (decay * 0.4))
+         + 0.08 * sine(f0 * 3.0, n, rng.uniform(0, 6.28)) * np.exp(-t / (decay * 0.2)))
+    a = int(attack * SR)
+    env = np.exp(-t / decay)
+    env[:a] *= np.sin(np.linspace(0, np.pi / 2, a)) ** 2
+    tail = int(0.5 * SR)
+    env[-tail:] *= np.linspace(1, 0, tail)
+    x *= env
+    return np.stack([x * np.cos(pan * np.pi / 2), x * np.sin(pan * np.pi / 2)], axis=1)
+
+
+def pink_noise(n, rng):
+    """Pink noise lewat pembentukan spektrum 1/f di domain frekuensi."""
+    spec = np.fft.rfft(rng.standard_normal(n))
+    f = np.arange(len(spec))
+    f[0] = 1
+    x = np.fft.irfft(spec / np.sqrt(f), n)
+    return x / np.max(np.abs(x))
+
+
+def moving_bandpass(x, center, q=1.2, block=1024):
+    out = np.empty_like(x)
+    zi = None
+    for s in range(0, len(x), block):
+        fc = float(np.clip(center[s], 40, SR / 2 - 1000))
+        lo, hi = fc / (1 + 1 / (2 * q)), fc * (1 + 1 / (2 * q))
+        sos = butter(2, [lo, hi], btype="band", fs=SR, output="sos")
+        if zi is None:
+            zi = np.zeros((sos.shape[0], 2))
+        out[s:s + block], zi = sosfilt(sos, x[s:s + block], zi=zi)
+    return out
+
+
+def texture(duration, rng, p):
+    """Angin/ruang: pink noise band-pass, dipandu tiga LFO berperiode prima."""
+    n = int(duration * SR)
+    chans = []
+    for ch in range(2):
+        noise = pink_noise(n, rng)
+        m = np.mean([lfo(n, per, rng.uniform(0, 6.28)) for per in p["lfo_periods"]], axis=0)
+        center = p["band_lo"] * (p["band_hi"] / p["band_lo"]) ** m
+        amp = 0.4 + 0.6 * lfo(n, p["lfo_periods"][ch % 3] * 1.7, rng.uniform(0, 6.28))
+        chans.append(moving_bandpass(noise, center) * amp)
+    x = np.stack(chans, axis=1)
+    return x / (np.max(np.abs(x)) + 1e-12)
