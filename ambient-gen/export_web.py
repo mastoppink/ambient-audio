@@ -28,7 +28,8 @@ def build():
             "pad_base": {k: config.PAD[k] for k in ("n_osc", "attack", "release")},
             "drone_base": {k: config.DRONE[k] for k in ("n_osc", "detune_cents", "saw_mix",
                                                         "attack", "release", "lfo_period")},
-            "texture_base": {"lfo_periods": list(config.TEXTURE["lfo_periods"])}}
+            "texture_base": {"lfo_periods": list(config.TEXTURE["lfo_periods"])},
+            "judul": json.load(open(ROOT / "judul_kata.json", encoding="utf-8"))}
 
 
 def main():

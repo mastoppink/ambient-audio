@@ -66,6 +66,19 @@ python buat.py --lanjut
 - Setiap video mendapat foldernya sendiri: file `.mp3` untuk aplikasi video, resep `.toml`, dan `info.txt`
   berisi saran judul dan deskripsi YouTube.
 
+**Judul, deskripsi, chapter, dan tag YouTube otomatis.** Setiap video mendapat 5 pilihan judul bahasa Inggris
+dan 5 bahasa Indonesia di `info.txt`, disusun dari suara yang benar-benar dihasilkan: suasana, suara melodi,
+kecerahan terukur, tujuan, dan durasi. Deskripsinya sudah berisi chapter YouTube dari babak lagu (0:00, 9:38, ...)
+dan hashtag. Judul tidak akan sama dengan video yang pernah dibuat, dan tidak pernah memakai klaim yang tidak
+benar seperti "432 Hz", "binaural", atau "healing".
+
+Untuk hasil render manual (`generate.py`) file-nya bernama `.judul.txt`, atau buat ulang dengan:
+```bash
+python judul.py out/nama_file.toml
+```
+Di Studio web, bagian **05 Judul & deskripsi YouTube** menampilkan judul untuk pengaturan yang sedang terdengar,
+lengkap dengan tombol salin.
+
 Untuk mengecek kemiripan hasil yang sudah ada:
 ```bash
 python mirip.py out/video
@@ -87,6 +100,7 @@ Hasilnya muncul di folder `out/`. Lama render sekitar 10 menit untuk 60 menit mu
 | **`.mp3`** | **Untuk diupload / dipakai di aplikasi video** (320 kbps, sudah dimastering) |
 | `.wav` | Kualitas penuh (24-bit), untuk arsip |
 | `.toml` | "Resep" lagu ini: bisa dipakai untuk membuat ulang hasil yang persis sama |
+| `.judul.txt` | Pilihan judul (Inggris & Indonesia), deskripsi dengan chapter, tag, dan hashtag YouTube |
 | `.qc.txt`, `.qc.png` | Laporan kualitas suara (volume, puncak, keseimbangan nada) |
 | `.events.json` | Daftar nada (teknis, boleh diabaikan) |
 

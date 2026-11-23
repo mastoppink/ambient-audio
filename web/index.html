@@ -105,6 +105,32 @@
     </div>
   </section>
 
+  <section class="sheet titles" aria-label="Judul dan deskripsi YouTube">
+    <div class="tune-head">
+      <div class="label"><span class="num">05</span>Judul &amp; deskripsi YouTube</div>
+      <div class="tune-tools">
+        <label class="field inline-field"><span>Tujuan</span>
+          <select id="judulTujuan"><option value="">Otomatis (dari suara)</option><option value="tidur">Tidur</option><option value="fokus">Fokus</option>
+            <option value="belajar">Belajar</option><option value="santai">Bersantai</option><option value="meditasi">Meditasi</option></select>
+        </label>
+        <label class="field inline-field"><span>Bahasa</span>
+          <select id="judulBahasa"><option value="en">Inggris</option><option value="id">Indonesia</option></select>
+        </label>
+      </div>
+    </div>
+    <div class="titles-grid">
+      <div>
+        <ol id="judulList" class="title-list"></ol>
+        <p class="note mono" id="judulTag"></p>
+      </div>
+      <div>
+        <textarea id="judulDesk" rows="12" readonly aria-label="Deskripsi"></textarea>
+        <div class="actions"><button id="judulDeskCopy" class="quiet" type="button"><svg class="ic"><use href="#i-copy"/></svg>Salin deskripsi</button></div>
+      </div>
+    </div>
+    <p class="note">Disusun dari suasana, suara melodi, kecerahan, bentuk lagu, dan durasi yang sedang dipilih. Chapter mengikuti babak lagu versi 60 menit. Versi Python membuat file <code>.judul.txt</code> dari audio yang sudah jadi.</p>
+  </section>
+
   <footer>
     <p>File <code>.toml</code> berisi pengaturan yang sedang terdengar: warna suara, nada dasar, suasana, dan bentuk lagu. Urutan chord dan melodi di versi Python akan berbeda, karena tiap versi punya pengacak sendiri. Efek kilau (shimmer) hanya ada di versi Python.</p>
   </footer>

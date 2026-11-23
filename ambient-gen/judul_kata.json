@@ -1,0 +1,321 @@
+{
+  "_catatan": "Kosakata generator judul (dipakai judul.py dan Studio web). Hanya kata yang benar tentang audionya: jangan tambahkan klaim seperti 432 Hz, binaural, healing, delta waves.",
+  "mode": {
+    "lydian": {
+      "en": [
+        "Weightless",
+        "Floating",
+        "Luminous",
+        "Boundless"
+      ],
+      "id": [
+        "Melayang",
+        "Luas",
+        "Bercahaya"
+      ]
+    },
+    "ionian": {
+      "en": [
+        "Gentle",
+        "Serene",
+        "Tender",
+        "Peaceful"
+      ],
+      "id": [
+        "Lembut",
+        "Tenang",
+        "Damai"
+      ]
+    },
+    "mixolydian": {
+      "en": [
+        "Easygoing",
+        "Hopeful",
+        "Airy",
+        "Light"
+      ],
+      "id": [
+        "Ringan",
+        "Santai",
+        "Lapang"
+      ]
+    },
+    "dorian": {
+      "en": [
+        "Wistful",
+        "Warm",
+        "Drifting",
+        "Reflective"
+      ],
+      "id": [
+        "Sendu",
+        "Hangat",
+        "Syahdu"
+      ]
+    },
+    "aeolian": {
+      "en": [
+        "Dark",
+        "Calm",
+        "Melancholic",
+        "Quiet"
+      ],
+      "id": [
+        "Gelap",
+        "Hening",
+        "Muram"
+      ]
+    },
+    "phrygian": {
+      "en": [
+        "Mysterious",
+        "Distant",
+        "Shadowed",
+        "Enigmatic"
+      ],
+      "id": [
+        "Misterius",
+        "Jauh",
+        "Remang"
+      ]
+    }
+  },
+  "terang": {
+    "en": [
+      "Shimmering",
+      "Glowing",
+      "Radiant"
+    ],
+    "id": [
+      "Berkilau",
+      "Berpendar"
+    ]
+  },
+  "gelap": {
+    "en": [
+      "Deep",
+      "Dim",
+      "Velvet"
+    ],
+    "id": [
+      "Dalam",
+      "Redup",
+      "Pekat"
+    ]
+  },
+  "melodi": {
+    "glass": {
+      "en": "Glass Bells",
+      "id": "Denting Lonceng Kaca"
+    },
+    "kalimba": {
+      "en": "Kalimba",
+      "id": "Kalimba"
+    },
+    "piano": {
+      "en": "Soft Piano",
+      "id": "Piano Lembut"
+    },
+    "soft": {
+      "en": "Soft Tones",
+      "id": "Nada Lembut"
+    },
+    "-": {
+      "en": "Pure Drones",
+      "id": "Dengung Murni"
+    }
+  },
+  "citra": {
+    "terang": {
+      "en": [
+        "Nebula",
+        "Starlight",
+        "Aurora",
+        "Stardust",
+        "Northern Lights",
+        "Starfield"
+      ],
+      "id": [
+        "Nebula",
+        "Cahaya Bintang",
+        "Aurora",
+        "Debu Bintang"
+      ]
+    },
+    "netral": {
+      "en": [
+        "Orbit",
+        "Cosmos",
+        "Stellar Drift",
+        "Celestial Sea",
+        "Moon Orbit",
+        "Galaxy"
+      ],
+      "id": [
+        "Orbit",
+        "Kosmos",
+        "Samudra Langit",
+        "Galaksi"
+      ]
+    },
+    "gelap": {
+      "en": [
+        "Deep Space",
+        "Event Horizon",
+        "Dark Matter",
+        "The Void",
+        "Night Sky",
+        "Far Side of the Moon"
+      ],
+      "id": [
+        "Luar Angkasa",
+        "Langit Malam",
+        "Ruang Hampa",
+        "Sisi Jauh Bulan"
+      ]
+    }
+  },
+  "tujuan": {
+    "tidur": {
+      "en": [
+        "Deep Sleep",
+        "Restful Sleep",
+        "Falling Asleep"
+      ],
+      "id": [
+        "Tidur Nyenyak",
+        "Pengantar Tidur"
+      ],
+      "verb_en": "Sleep"
+    },
+    "fokus": {
+      "en": [
+        "Focus",
+        "Deep Focus",
+        "Concentration"
+      ],
+      "id": [
+        "Fokus",
+        "Konsentrasi"
+      ],
+      "verb_en": "Focus"
+    },
+    "belajar": {
+      "en": [
+        "Study",
+        "Studying & Reading",
+        "Work and Study"
+      ],
+      "id": [
+        "Belajar",
+        "Belajar & Membaca"
+      ],
+      "verb_en": "Study"
+    },
+    "santai": {
+      "en": [
+        "Relaxation",
+        "Unwinding",
+        "Calm Evenings"
+      ],
+      "id": [
+        "Bersantai",
+        "Relaksasi"
+      ],
+      "verb_en": "Relax"
+    },
+    "meditasi": {
+      "en": [
+        "Meditation",
+        "Mindfulness",
+        "Quiet Reflection"
+      ],
+      "id": [
+        "Meditasi",
+        "Perenungan"
+      ],
+      "verb_en": "Meditate"
+    }
+  },
+  "bentuk": {
+    "arc": {
+      "en": "gently rising and falling",
+      "id": "naik-turun dengan lembut"
+    },
+    "rise": {
+      "en": "slowly unfolding",
+      "id": "tumbuh perlahan"
+    },
+    "valley": {
+      "en": "settling into stillness midway",
+      "id": "menenang di tengah"
+    },
+    "calm": {
+      "en": "steady and still",
+      "id": "datar dan tenang"
+    },
+    "journey": {
+      "en": "drifting through changing scenes",
+      "id": "berpindah dari suasana ke suasana"
+    }
+  },
+  "babak": {
+    "en": [
+      "Arrival",
+      "Drift",
+      "Glow",
+      "Stillness",
+      "Deep Field",
+      "Return",
+      "Afterglow",
+      "Nightfall",
+      "Horizon",
+      "Slow Orbit"
+    ],
+    "id": [
+      "Tiba",
+      "Hanyut",
+      "Berpendar",
+      "Hening",
+      "Medan Dalam",
+      "Kembali",
+      "Cahaya Sisa",
+      "Senja",
+      "Cakrawala",
+      "Orbit Lambat"
+    ]
+  },
+  "templat": {
+    "en": [
+      "{citra} · {mood} Ambient with {melodi} for {tujuan} ({durasi})",
+      "{durasi} of {mood} Space Ambient · {melodi} for {tujuan}",
+      "{citra} | {mood2} {melodi} & Cosmic Drones to {verb}",
+      "{mood} {citra} · Ambient Music for {tujuan} ({durasi})",
+      "{citra} — {mood} Ambient Soundscape for {tujuan} · {durasi}"
+    ],
+    "id": [
+      "{citra} · Musik Ambient {mood} dengan {melodi} untuk {tujuan} ({durasi})",
+      "{durasi} Musik Luar Angkasa yang {mood} · {melodi} untuk {tujuan}",
+      "{citra} | Ambient {mood} untuk {tujuan} · {durasi}",
+      "{citra} — Musik Ambient {mood} untuk {tujuan} ({durasi})",
+      "{citra} · {melodi} dan Ambient {mood} untuk {tujuan}"
+    ]
+  },
+  "terlarang": [
+    "432",
+    "528",
+    "hz ",
+    "binaural",
+    "healing",
+    "heal ",
+    "delta wave",
+    "theta",
+    "solfeggio",
+    "no ads",
+    "tanpa iklan",
+    "cure",
+    "menyembuhkan",
+    "miracle",
+    "dna"
+  ]
+}

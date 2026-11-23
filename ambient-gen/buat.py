@@ -20,6 +20,7 @@ import numpy as np
 
 import config
 import form
+import judul
 import mirip
 import settings
 from compose import compose
@@ -88,7 +89,7 @@ def kandidat(preset, tonic, seed, menit):
 
 
 def rencanakan(tujuan, jumlah, menit, rng, log=print):
-    judul_tujuan, daftar = TUJUAN[tujuan]
+    _, daftar = TUJUAN[tujuan]
     lama = [_feat_from_json(k["fitur"]) for k in baca_katalog()]
     terpakai = {(k["preset"], k["nada"]) for k in baca_katalog()}
     rencana, fitur_rencana = [], []
@@ -112,13 +113,16 @@ def rencanakan(tujuan, jumlah, menit, rng, log=print):
         terpakai.add((preset, tonic))
         fitur_rencana.append(f)
         timbre = r["melody"]["timbre"] if r["mix"]["melody"] > 0 else "-"
+        hindari = [k.get("judul", "") for k in baca_katalog()] + [v["judul"] for v in rencana]
+        jd = judul.buat(r, None, None, tujuan if tujuan != "campur" else None, hindari=hindari)
         rencana.append({
             "no": i + 1, "preset": preset, "nama": r["name"], "nada": tonic, "seed": seed, "menit": menit,
             "suasana": SUASANA.get(r["key"]["mode"], r["key"]["mode"]),
             "bentuk": BENTUK.get(r["form"]["type"], r["form"]["type"]),
             "melodi": MELODI.get(timbre, timbre),
             "kemiripan_maks": round(skor, 3),
-            "judul": f"{r['name']} · {menit} Menit Musik Ambient {judul_tujuan}".replace("  ", " ").strip(),
+            "judul": jd["judul_en"][0], "judul_id": jd["judul_id"][0],
+            "tujuan": tujuan if tujuan != "campur" else jd["tujuan"],
             "resep": r, "fitur": _feat_to_json(f),
         })
     return rencana
@@ -131,6 +135,7 @@ def tampilkan(rencana, log=print):
         log(f"           melodi: {v['melodi']} · bentuk: {v['bentuk']} · {v['menit']} menit")
         log(f"           kemiripan dengan video lain: {v['kemiripan_maks']:.0%} "
             f"({mirip.verdict(v['kemiripan_maks'])})")
+        log(f"           judul: {v['judul']}")
     log("")
 
 
@@ -148,8 +153,12 @@ def render(rencana, contoh=False, log=print):
         log(f"\n[{v['no']}/{len(rencana)}] {v['judul']}" + ("  (contoh 2 menit)" if contoh else ""))
         r = json.loads(json.dumps(v["resep"]))
         _, _, _ = render_resolved(r, v["seed"], menit * 60, v["menit"] * 60, stem, log=log)
-        with open(os.path.join(folder, "info.txt"), "w") as f:
-            f.write(info_text(v, contoh))
+        # judul final memakai audio yang sudah jadi (kecerahan terukur, jumlah nada, babak -> chapter)
+        hindari = [k.get("judul", "") for k in katalog]
+        jd = judul.dari_file(stem + ".toml", v.get("tujuan"), hindari=hindari)
+        v["judul"], v["judul_id"] = jd["judul_en"][0], jd["judul_id"][0]
+        with open(os.path.join(folder, "info.txt"), "w", encoding="utf-8") as f:
+            f.write(info_text(v, contoh) + "\n" + judul.teks(jd))
         hasil.append(folder)
         if not contoh:
             # catat fitur lengkap (termasuk warna suara dari laporan kualitas)
@@ -174,10 +183,6 @@ Nomor versi (seed): {v['seed']}
 File untuk aplikasi video: file .mp3 di folder ini.
 Resep untuk membuat ulang persis: file .toml di folder ini
   (python generate.py <file>.toml --duration {v['menit']})
-
-Saran deskripsi YouTube:
-  {v['menit']} menit musik ambient bertema luar angkasa dengan suasana {v['suasana']}.
-  Musik ini dibuat dengan synth dan proses generatif buatan sendiri.
 """
 
 

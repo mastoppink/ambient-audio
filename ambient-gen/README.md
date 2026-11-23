@@ -26,6 +26,7 @@ python -m pytest -q tests
 | `harmony_check.py` | Hitung nada melodi yang bentrok (1 semiton) dengan chord |
 | `buat.py` | Antarmuka mudah: tujuan → rencana beberapa video yang saling berbeda → render, dengan katalog riwayat |
 | `mirip.py` | Skor kemiripan dua lagu (nada, urutan chord, warna suara, timbre, bentuk) |
+| `judul.py`, `judul_kata.json` | Judul/deskripsi/chapter/tag YouTube dari ciri audio (mode, timbre, kecerahan QC, tujuan, durasi, babak); kosakata dipakai bersama Studio web |
 | `cek_rilis.py` | Pemeriksaan rilis per preset: LUFS, true peak WAV/MP3, awal hening, fade-out, klik, spektrum, nada sumbang |
 | `presets/*.toml` | Sembilan preset |
 | `export_web.py` | Ekspor preset + EQ ke `../web/presets.json` (jalankan setelah mengubah preset; dicek oleh tes) |

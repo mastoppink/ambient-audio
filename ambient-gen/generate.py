@@ -75,8 +75,14 @@ def render_resolved(r, seed, total, full, stem, stems=False, workers=None, mp3=T
     if qc_text:
         log("\n".join("  " + l for l in qc_text.splitlines()[3:] if "[CEK" in l or "[MASALAH" in l)
             or "  QC: semua OK")
+    try:   # saran judul, deskripsi, chapter & tag YouTube yang sesuai audio ini
+        import judul
+        with open(f"{stem}.judul.txt", "w", encoding="utf-8") as f:
+            f.write(judul.teks(judul.dari_file(f"{stem}.toml")))
+    except Exception as err:   # judul tidak boleh menggagalkan render
+        log(f"  (judul tidak dibuat: {err})")
     ext = "wav" + ("/.mp3" if mp3 else "") + ("/.flac" if flac else "") + ("/.16bit.flac" if flac16 else "")
-    log(f"  -> {stem}.{ext}/.toml  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
+    log(f"  -> {stem}.{ext}/.toml/.judul.txt  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
     return lufs, qc_text, events
 
 if __name__ == "__main__":

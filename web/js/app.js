@@ -3,6 +3,7 @@ import { resolve, technical, deepMerge, clone, MODES, NOTE_NAMES, FORM_TYPES } f
 import { Engine } from "./engine.js";
 import { integratedLoudness, limitInPlace, wavBlob } from "./dsp.js";
 import { toToml } from "./toml.js";
+import { buatJudul } from "./judul.js";
 
 const SR = 48000;
 const $ = (s) => document.querySelector(s);
@@ -83,7 +84,10 @@ async function init() {
   $("#reset").onclick = () => loadPreset(state.presetKey);
   $("#toml").onclick = downloadToml;
   $("#render").onclick = renderWav;
-  $("#copy").onclick = () => navigator.clipboard?.writeText($("#cmd").textContent);
+  $("#copy").onclick = (e) => copyText($("#cmd").textContent, e.currentTarget);
+  $("#judulTujuan").onchange = renderTitles;
+  $("#judulBahasa").onchange = renderTitles;
+  $("#judulDeskCopy").onclick = (e) => copyText($("#judulDesk").value, e.currentTarget);
   loadPreset(Object.keys(DATA.presets)[0]);
   drawLoop();
 }
@@ -138,12 +142,48 @@ function refresh() {
   }
   $("#keyinfo").textContent = `Nada ${P.tonicName}, ${MODE_NAMES[P.mode].toLowerCase()} · bentuk: ${FORM_NAMES[r.form.type].toLowerCase()} · volume akhir ${r.master.target_lufs} LUFS (${r.master.target_lufs >= -14.5 ? "standar YouTube" : "lebih pelan, untuk tidur/tenang"})`;
   $("#cmd").textContent = `python generate.py ${fileName()}.toml --duration 60`;
+  renderTitles();
   if (!playing) return;
   // nada dasar/suasana/preset/nomor versi mengubah isi lagu -> mulai ulang (crossfade).
   // Slider lain diterapkan langsung ke lagu yang sedang berjalan.
   const id = songIdentity(P);
   if (id !== identity) { clearTimeout(restartTimer); restartTimer = setTimeout(() => startEngine(true), 300); }
   else if (engine) { clearTimeout(updateTimer); updateTimer = setTimeout(() => engine?.update(current().P), 60); }
+}
+
+/** Judul & deskripsi YouTube untuk pengaturan yang sedang terdengar (versi 60 menit). */
+function renderTitles() {
+  if (!DATA?.judul) return;
+  const r = resolve(state.raw, state.seed);
+  r.duration_min = 60;
+  const j = buatJudul(DATA.judul, r, { tujuan: $("#judulTujuan").value || null });
+  const en = $("#judulBahasa").value === "en", list = (en ? j.judulEn : j.judulId).slice(0, 4);
+  const ol = $("#judulList");
+  ol.innerHTML = "";
+  for (const t of list) {
+    const li = document.createElement("li");
+    const span = document.createElement("span"); span.textContent = t;
+    const small = document.createElement("small"); small.textContent = `${t.length} karakter`; span.appendChild(small);
+    const b = document.createElement("button"); b.className = "icon-btn quiet"; b.type = "button"; b.title = "Salin judul"; b.setAttribute("aria-label", "Salin judul");
+    b.innerHTML = '<svg class="ic"><use href="#i-copy"/></svg>';
+    b.onclick = () => copyText(t, b);
+    li.append(span, b); ol.appendChild(li);
+  }
+  $("#judulDesk").value = (en ? j.deskripsiEn : j.deskripsiId) + "\n" + j.hashtag.join(" ");
+  $("#judulTag").textContent = `Tujuan: ${j.tujuan} · Tag: ${j.tag.join(", ")}`;
+}
+
+function copyText(text, btn) {
+  const done = () => { btn?.classList.add("copied"); setTimeout(() => btn?.classList.remove("copied"), 1200); };
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text, done));
+  else fallbackCopy(text, done);
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); done(); } catch (e) { /* tidak didukung */ }
+  ta.remove();
 }
 
 function songIdentity(P) { return [state.presetKey, state.seed, P.tonic, P.mode].join("|"); }
