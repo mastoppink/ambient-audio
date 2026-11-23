@@ -7,6 +7,7 @@ import { toToml } from "./toml.js";
 const SR = 48000;
 const $ = (s) => document.querySelector(s);
 let DATA, ctx = null, engine = null, timer = null, restartTimer = null, updateTimer = null, playing = false, startToken = 0;
+let bus = null, busAn = null;
 let identity = "";   // preset|nomor versi|nada|suasana: kalau berubah, lagu dimulai ulang
 const state = { presetKey: null, raw: null, seed: 1, touched: new Set() };
 
@@ -158,7 +159,12 @@ async function togglePlay() {
     playing = false; startToken++;
     engine?.stop(); engine = null; clearInterval(timer); setPlayButton(false); return;
   }
-  ctx ??= new AudioContext({ sampleRate: SR, latencyHint: "playback" });
+  if (!ctx) {
+    ctx = new AudioContext({ sampleRate: SR, latencyHint: "playback" });
+    bus = ctx.createGain(); bus.connect(ctx.destination);       // semua mesin lewat sini
+    busAn = ctx.createAnalyser(); busAn.fftSize = 8192; bus.connect(busAn);
+    window.__busAn = busAn;   // untuk pengujian otomatis: level keluaran sebenarnya
+  }
   await ctx.resume();
   playing = true; setPlayButton(true);
   startEngine(false);
@@ -170,19 +176,26 @@ function setPlayButton(on) {
   b.classList.toggle("on", on);
 }
 
-const agc = { hist: [], gainDb: 0 };
+const agc = { hist: [], gainDb: 0, target: null, byPreset: {}, ticks: 0 };
+const XFADE = 3;      // detik crossfade saat ganti preset/nada/nomor versi sambil memutar
+const WARM = 24;      // lagu baru dimulai "panas": seolah sudah berjalan 24 detik
+
 async function startEngine(crossfade) {
   // mesin baru disiapkan di latar (reverb dirender async); lagu lama tetap berbunyi sampai siap
-  const token = ++startToken, { P } = current();
-  const next = await Engine.create(ctx, P, state.seed, { total: null });
+  const token = ++startToken, { r, P } = current();
+  const next = await Engine.create(ctx, P, state.seed, { total: null, destination: bus });
   if (token !== startToken || !playing) { next.stop(0.05); return; }
-  next.begin();
+  // volume otomatis: pakai gain yang pernah dipelajari untuk preset ini, atau tebakan dari target
+  const prevTarget = agc.target ?? r.master.target_lufs;
+  agc.gainDb = agc.byPreset[state.presetKey] ?? agc.gainDb + (r.master.target_lufs - prevTarget);
+  agc.target = r.master.target_lufs;
   next.masterGain.gain.value = 10 ** (agc.gainDb / 20);
-  if (crossfade) { next.out.gain.setValueAtTime(0, ctx.currentTime); next.out.gain.linearRampToValueAtTime(1, ctx.currentTime + 2.5); }
+  next.begin(crossfade ? WARM : 0);
+  if (crossfade) { next.out.gain.value = 0; next.fadeIn(XFADE); }
   const old = engine;
   engine = next; identity = songIdentity(P);
-  if (old) old.stop(2.5);
-  engine.scheduleUntil(20);
+  if (old) old.stop(XFADE);
+  engine.scheduleUntil(engine.now() + 20);
   setupMeter();
   clearInterval(timer);
   timer = setInterval(tick, 250);
@@ -191,6 +204,7 @@ async function startEngine(crossfade) {
 // meter loudness kira-kira (K-weighting didekati dengan biquad) + penyesuaian volume otomatis pelan
 let meter = null;
 function setupMeter() {
+  if (meter) for (const n of meter.nodes) n.disconnect();   // lepas alat ukur mesin sebelumnya
   const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 38; hp.Q.value = 0.5;
   const sh = ctx.createBiquadFilter(); sh.type = "highshelf"; sh.frequency.value = 1500; sh.gain.value = 4;
   const sp = ctx.createChannelSplitter(2);
@@ -200,9 +214,9 @@ function setupMeter() {
   sp.connect(an[0], 0); sp.connect(an[1], 1);
   const viz = ctx.createAnalyser(); viz.fftSize = 4096; viz.smoothingTimeConstant = 0.85;
   engine.out.connect(viz);
-  meter = { an, buf: new Float32Array(16384), viz };
+  meter = { an, buf: new Float32Array(16384), viz, nodes: [hp, sh, sp, ...an, viz] };
   window.__meterViz = viz;   // untuk pengujian otomatis
-  agc.hist = [];
+  agc.hist = []; agc.ticks = 0;
 }
 
 function tick() {
@@ -213,20 +227,23 @@ function tick() {
   $("#chord").textContent = chord || "–";
   $("#section").textContent = section ? describeSection(section) : "–";
   $("#intensity").style.width = `${Math.round(intensity * 100)}%`;
-  const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
+  const shown = Math.max(0, t - (engine.warm || 0));   // jam di layar dihitung sejak lagu ini terdengar
+  const mm = Math.floor(shown / 60), ss = Math.floor(shown % 60);
   $("#time").textContent = `${mm}:${String(ss).padStart(2, "0")}`;
   // loudness: energi K-weighted rata-rata ~20 detik terakhir
   if (meter && t > 2) {
     let e = 0;
     for (const a of meter.an) { a.getFloatTimeDomainData(meter.buf); let s = 0; for (const v of meter.buf) s += v * v; e += s / meter.buf.length; }
     agc.hist.push(e); if (agc.hist.length > 80) agc.hist.shift();
+    agc.ticks++;
     const mean = agc.hist.reduce((a, b) => a + b, 0) / agc.hist.length;
     const lufs = -0.691 + 10 * Math.log10(mean + 1e-12);     // sebelum gain master
     const target = current().r.master.target_lufs;
-    if (agc.hist.length >= 24) {   // setelah ~6 s: arahkan gain master pelan-pelan ke target
-      const want = Math.max(-24, Math.min(24, target - lufs));
-      agc.gainDb += Math.max(-0.15, Math.min(0.15, want - agc.gainDb));
+    if (agc.hist.length >= 8) {   // setelah ~2 s: arahkan gain master ke target (cepat dulu, lalu pelan)
+      const want = Math.max(-24, Math.min(24, target - lufs)), step = agc.ticks < 40 ? 0.3 : 0.1;
+      agc.gainDb += Math.max(-step, Math.min(step, want - agc.gainDb));
       engine.masterGain.gain.setTargetAtTime(10 ** (agc.gainDb / 20), ctx.currentTime, 0.5);
+      if (agc.ticks > 40) agc.byPreset[state.presetKey] = agc.gainDb;
     }
     $("#lufs").textContent = `≈ ${(lufs + agc.gainDb).toFixed(1)} LUFS`;
   }

@@ -34,8 +34,9 @@ export class Engine {
    * @param P parameter teknis (music.technical)
    * @param total durasi lagu (detik) atau null untuk tanpa akhir
    */
-  constructor(ctx, P, seed, { total = null, offline = false, start = null } = {}) {
+  constructor(ctx, P, seed, { total = null, offline = false, start = null, destination = null } = {}) {
     this.ctx = ctx; this.P = P; this.seed = seed; this.total = total; this.offline = offline;
+    this.destination = destination ?? ctx.destination;
     this.startAt = start;
     this.t0 = start ?? ctx.currentTime + 0.15;
     this.shape = makeShape(total, seed, P.form);
@@ -47,10 +48,16 @@ export class Engine {
     this._applyLevels(0);
   }
 
-  /** Mulai pemutaran: waktu nol lagu = sekarang (dipanggil setelah create selesai). */
-  begin() {
-    if (!this.offline && this.startAt == null) this.t0 = this.ctx.currentTime + 0.1;
-    for (const n of this._startLater) n.start(this.t0);
+  /**
+   * Mulai pemutaran (dipanggil setelah create selesai).
+   * warm > 0: lagu dimulai seolah sudah berjalan `warm` detik, jadi drone/pad/angin langsung penuh
+   * tanpa intro. Dipakai saat ganti preset sambil memutar, supaya tidak ada lubang hening.
+   */
+  begin(warm = 0) {
+    const now = this.ctx.currentTime + 0.1;
+    if (!this.offline && this.startAt == null) this.t0 = now - warm;
+    this.warm = warm;
+    for (const n of this._startLater) n.start(Math.max(this.t0, this.offline ? 0 : now));
     this._startLater = [];
   }
 
@@ -102,7 +109,7 @@ export class Engine {
       lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.2;
       this.masterGain.connect(lim).connect(this.out);
     }
-    this.out.connect(ctx.destination);
+    this.out.connect(this.destination);
     this.meterTap = this.masterGain;      // titik ukur loudness (sebelum limiter)
 
     this.dryBus = ctx.createGain(); this.dryBus.gain.value = F.dry; this.dryBus.connect(this.master);
@@ -313,7 +320,11 @@ export class Engine {
         attack: P.chordOverlap, release: P.chordOverlap, shapeBright: P.pad.shapeBright,
       }));
     }
-    for (const n of this.comp.melodyUntil(until)) if (n.t < end - 8) this._melodyVoice(n.midi, n.t, n.vel, rngFor(this.seed, "mel", n.t.toFixed(3), n.midi));
+    const late = this.offline ? -Infinity : this.ctx.currentTime + 0.05;
+    for (const n of this.comp.melodyUntil(until)) {
+      // nada yang waktunya sudah lewat (mulai "panas") dilewati, jangan dibunyikan bersamaan
+      if (n.t < end - 8 && this.t0 + n.t >= late) this._melodyVoice(n.midi, n.t, n.vel, rngFor(this.seed, "mel", n.t.toFixed(3), n.midi));
+    }
     while (this.texChunk * TEX_CHUNK < until) {
       const st = this.texChunk++ * TEX_CHUNK, dur = Math.min(TEX_CHUNK, end - st) - 1e-3;
       if (dur <= 0) break;
@@ -401,10 +412,18 @@ export class Engine {
     }
   }
 
+  /** Naik dari 0 dengan kurva equal-power (pasangan dari stop dengan crossfade). */
+  fadeIn(dur) {
+    const t = this.ctx.currentTime + 0.02;
+    this.out.gain.setValueCurveAtTime(Float32Array.from({ length: 64 }, (_, i) => Math.sin(((i / 63) * Math.PI) / 2)), t, dur);
+  }
+
   stop(fade = 1.5) {
     this.stopped = true;
-    const g = this.out.gain, t = this.ctx.currentTime;
-    g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + fade);
+    const g = this.out.gain, t = this.ctx.currentTime + 0.02, v = g.value;
+    if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(t); else g.cancelScheduledValues(t);
+    // equal-power: jumlah energi lama + baru tetap rata selama crossfade
+    g.setValueCurveAtTime(Float32Array.from({ length: 64 }, (_, i) => v * Math.cos(((i / 63) * Math.PI) / 2)), t + 0.01, fade);
     setTimeout(() => { for (const n of this.nodes) { try { n.stop(); } catch (e) { /* sudah berhenti */ } } this.out.disconnect(); }, fade * 1000 + 100);
   }
 
