@@ -6,7 +6,8 @@ import { toToml } from "./toml.js";
 
 const SR = 48000;
 const $ = (s) => document.querySelector(s);
-let DATA, ctx = null, engine = null, timer = null, restartTimer = null;
+let DATA, ctx = null, engine = null, timer = null, restartTimer = null, updateTimer = null, playing = false, startToken = 0;
+let identity = "";   // preset|nomor versi|nada|suasana: kalau berubah, lagu dimulai ulang
 const state = { presetKey: null, raw: null, seed: 1, touched: new Set() };
 
 const MODE_NAMES = { lydian: "Luas & melayang", ionian: "Cerah & manis", mixolydian: "Ringan & santai",
@@ -136,8 +137,15 @@ function refresh() {
   }
   $("#keyinfo").textContent = `Nada ${P.tonicName}, ${MODE_NAMES[P.mode].toLowerCase()} · bentuk: ${FORM_NAMES[r.form.type].toLowerCase()} · volume akhir ${r.master.target_lufs} LUFS (${r.master.target_lufs >= -14.5 ? "standar YouTube" : "lebih pelan, untuk tidur/tenang"})`;
   $("#cmd").textContent = `python generate.py ${fileName()}.toml --duration 60`;
-  if (engine) { clearTimeout(restartTimer); restartTimer = setTimeout(() => startEngine(true), 450); }
+  if (!playing) return;
+  // nada dasar/suasana/preset/nomor versi mengubah isi lagu -> mulai ulang (crossfade).
+  // Slider lain diterapkan langsung ke lagu yang sedang berjalan.
+  const id = songIdentity(P);
+  if (id !== identity) { clearTimeout(restartTimer); restartTimer = setTimeout(() => startEngine(true), 300); }
+  else if (engine) { clearTimeout(updateTimer); updateTimer = setTimeout(() => engine?.update(current().P), 60); }
 }
+
+function songIdentity(P) { return [state.presetKey, state.seed, P.tonic, P.mode].join("|"); }
 
 function fileName() {
   const base = (state.raw.name || "spacenight").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
@@ -146,11 +154,14 @@ function fileName() {
 
 // ---------- pemutaran ----------
 async function togglePlay() {
-  if (engine) { engine.stop(); engine = null; clearInterval(timer); setPlayButton(false); return; }
+  if (playing) {
+    playing = false; startToken++;
+    engine?.stop(); engine = null; clearInterval(timer); setPlayButton(false); return;
+  }
   ctx ??= new AudioContext({ sampleRate: SR, latencyHint: "playback" });
   await ctx.resume();
+  playing = true; setPlayButton(true);
   startEngine(false);
-  setPlayButton(true);
 }
 
 function setPlayButton(on) {
@@ -160,12 +171,16 @@ function setPlayButton(on) {
 }
 
 const agc = { hist: [], gainDb: 0 };
-function startEngine(crossfade) {
-  const { P } = current();
+async function startEngine(crossfade) {
+  // mesin baru disiapkan di latar (reverb dirender async); lagu lama tetap berbunyi sampai siap
+  const token = ++startToken, { P } = current();
+  const next = await Engine.create(ctx, P, state.seed, { total: null });
+  if (token !== startToken || !playing) { next.stop(0.05); return; }
+  next.begin();
+  next.masterGain.gain.value = 10 ** (agc.gainDb / 20);
+  if (crossfade) { next.out.gain.setValueAtTime(0, ctx.currentTime); next.out.gain.linearRampToValueAtTime(1, ctx.currentTime + 2.5); }
   const old = engine;
-  engine = new Engine(ctx, P, state.seed, { total: null });
-  engine.masterGain.gain.value = 10 ** (agc.gainDb / 20);
-  if (crossfade) { engine.out.gain.setValueAtTime(0, ctx.currentTime); engine.out.gain.linearRampToValueAtTime(1, ctx.currentTime + 2.5); }
+  engine = next; identity = songIdentity(P);
   if (old) old.stop(2.5);
   engine.scheduleUntil(20);
   setupMeter();
@@ -186,6 +201,7 @@ function setupMeter() {
   const viz = ctx.createAnalyser(); viz.fftSize = 4096; viz.smoothingTimeConstant = 0.85;
   engine.out.connect(viz);
   meter = { an, buf: new Float32Array(16384), viz };
+  window.__meterViz = viz;   // untuk pengujian otomatis
   agc.hist = [];
 }
 
@@ -247,15 +263,16 @@ function drawLoop() {
       g.fillText(lab, x + 6 * dpr + tw > w ? x - 6 * dpr - tw : x + 6 * dpr, h - 8 * dpr);
     }
     if (engine && meter) {
-      const a = meter.viz, d = new Float32Array(a.frequencyBinCount);
+      const a = meter.viz, d = (meter.fd ??= new Float32Array(a.frequencyBinCount));
       a.getFloatFrequencyData(d);
+      const cum = (meter.cum ??= new Float64Array(d.length + 1));   // jumlah kumulatif energi per bin
+      for (let i = 0; i < d.length; i++) cum[i + 1] = cum[i] + 10 ** (d[i] / 10);
       g.beginPath();
       for (let x = 0; x <= w; x += 2) {
         // rata-rata energi dalam jendela 1/6 oktaf -> garis halus, bukan sisir harmonik
         const f = 30 * (16000 / 30) ** (x / w), bin = (SR / 2) / d.length;
         const i0 = Math.max(0, Math.floor((f * 2 ** (-1 / 12)) / bin)), i1 = Math.min(d.length - 1, Math.ceil((f * 2 ** (1 / 12)) / bin));
-        let e = 0; for (let i = i0; i <= i1; i++) e += 10 ** (d[i] / 10);
-        const db = 10 * Math.log10(e / (i1 - i0 + 1) + 1e-12);
+        const db = 10 * Math.log10((cum[i1 + 1] - cum[i0]) / (i1 - i0 + 1) + 1e-12);
         const y = h - ((Math.max(-110, db) + 110) / 85) * h;
         x === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
       }
@@ -282,7 +299,7 @@ async function renderWav() {
   btn.disabled = true;
   const { r, P } = current();
   const oc = new OfflineAudioContext(2, Math.round(total * SR), SR);
-  const eng = new Engine(oc, P, state.seed, { total, offline: true, start: 0 });
+  const eng = await Engine.create(oc, P, state.seed, { total, offline: true, start: 0 });
   eng.scheduleUntil(total);
   const step = Math.max(5, Math.floor(total / 40));
   for (let t = step; t < total; t += step) oc.suspend(t).then(() => { $("#progress").value = t / total; oc.resume(); });

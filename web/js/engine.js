@@ -1,14 +1,19 @@
 // Mesin audio Web Audio. Bekerja untuk AudioContext (pemutaran langsung, tanpa akhir) maupun
 // OfflineAudioContext (ekspor WAV). Struktur sama dengan ambient-gen/pipeline.py:
 // lapisan (drone, pad, melodi, tekstur) -> EQ -> efek lapisan -> kering + kirim ke reverb -> master.
+//
+// Performa: semua suara dihitung oleh mesin audio bawaan browser (native). Thread halaman hanya
+// menjadwalkan. Reverb dibuat async lewat OfflineAudioContext dan disimpan di cache; perubahan slider
+// diterapkan langsung lewat update() tanpa membangun ulang mesin.
 import { rngFor, midiToHz, Composer, makeShape, Sections } from "./music.js";
-import { makeIR, pinkBuffer } from "./dsp.js";
+import { makeIRAsync, pinkBufferCached } from "./dsp.js";
 
 const CURVE_HZ = 8;                 // resolusi kurva otomasi (titik per detik)
 const DRONE_CHUNK = 240;            // drone dibuat per potongan (detik), disambung crossfade
 const DRONE_XF = 20;
 const TEX_CHUNK = 30;
 const TIMBRE_GAIN = { soft: 1.0, glass: 0.9, kalimba: 1.08, piano: 2.2 };
+const GLIDE = 0.6;                  // detik: transisi saat parameter diubah langsung
 
 function curve(dur, fn) {
   const n = Math.max(2, Math.ceil(dur * CURVE_HZ) + 1), c = new Float32Array(n);
@@ -17,6 +22,13 @@ function curve(dur, fn) {
 }
 
 export class Engine {
+  /** Buat mesin dan tunggu reverb siap (tidak memblokir halaman). */
+  static async create(ctx, P, seed, opts = {}) {
+    const e = new Engine(ctx, P, seed, opts);
+    await e._loadIR(P.fx, true);
+    return e;
+  }
+
   /**
    * @param ctx AudioContext atau OfflineAudioContext (48 kHz)
    * @param P parameter teknis (music.technical)
@@ -24,18 +36,26 @@ export class Engine {
    */
   constructor(ctx, P, seed, { total = null, offline = false, start = null } = {}) {
     this.ctx = ctx; this.P = P; this.seed = seed; this.total = total; this.offline = offline;
+    this.startAt = start;
     this.t0 = start ?? ctx.currentTime + 0.15;
     this.shape = makeShape(total, seed, P.form);
-    this.sections = P.variation > 0 ? new Sections(seed, P.variation, P.melody.level > 0, total ?? 6 * 3600) : null;
+    this.sections = this._sections(P);
     this.comp = new Composer(P, seed, this.shape, this.sections);
     this.scheduledChord = 0; this.droneChunk = 0; this.texChunk = 0; this.nodes = new Set();
-    this.listeners = [];
+    this.voices = [];               // pad/drone yang dijadwalkan: untuk diubah langsung
     this._build();
-    if (!offline && start == null) this.t0 = Math.max(this.t0, ctx.currentTime + 0.1);
-    this.applyLevels();
+    this._applyLevels(0);
+  }
+
+  /** Mulai pemutaran: waktu nol lagu = sekarang (dipanggil setelah create selesai). */
+  begin() {
+    if (!this.offline && this.startAt == null) this.t0 = this.ctx.currentTime + 0.1;
+    for (const n of this._startLater) n.start(this.t0);
+    this._startLater = [];
   }
 
   now() { return this.ctx.currentTime - this.t0; }
+  _sections(P) { return P.variation > 0 ? new Sections(this.seed, P.variation, P.melody.level > 0, this.total ?? 6 * 3600) : null; }
 
   // ---------- graf ----------
   _eq(input, bands) {
@@ -52,10 +72,9 @@ export class Engine {
 
   _modDelay(input, { centre, depth, rate, mix }) {
     // chorus stereo: delay kiri dan kanan dimodulasi LFO yang sama dengan fase berlawanan
-    // (seperti Chorus pedalboard), jadi kanal kiri/kanan sedikit berbeda -> lebih lebar
     const ctx = this.ctx, out = ctx.createChannelMerger(2), dry = ctx.createGain(), sum = ctx.createGain();
     const split = ctx.createChannelSplitter(2), lfo = ctx.createOscillator();
-    lfo.frequency.value = rate; lfo.start(this.t0); this.nodes.add(lfo);
+    lfo.frequency.value = rate; this._startLater.push(lfo); this.nodes.add(lfo);
     dry.gain.value = 1 - mix;
     input.connect(dry).connect(sum);
     input.connect(split);
@@ -71,6 +90,7 @@ export class Engine {
 
   _build() {
     const ctx = this.ctx, P = this.P, F = P.fx;
+    this._startLater = [];
     this.master = ctx.createGain();
     const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 25;
     this.masterGain = ctx.createGain();
@@ -83,61 +103,80 @@ export class Engine {
       this.masterGain.connect(lim).connect(this.out);
     }
     this.out.connect(ctx.destination);
-    // titik ukur loudness (sebelum limiter) untuk penyesuaian volume otomatis
-    this.meterTap = this.masterGain;
+    this.meterTap = this.masterGain;      // titik ukur loudness (sebelum limiter)
 
-    const dryBus = ctx.createGain(); dryBus.gain.value = F.dry; dryBus.connect(this.master);
-    const revIn = ctx.createGain();
-    const conv = ctx.createConvolver(); conv.normalize = false;
-    conv.buffer = makeIR(ctx, rngFor(this.seed, "ir"), { decay: F.decay, predelay: F.predelay, hp: F.reverbHp, early: F.early, width: F.width });
-    revIn.connect(conv);
-    let wet = conv;
-    if (F.motion > 0) {   // modulasi pelan pada ekor reverb
-      const m = this._modDelay(conv, { centre: 0.014, depth: 0.003, rate: 0.07, mix: 0.5 * F.motion });
-      wet = m;
-    }
-    const wetGain = ctx.createGain(); wetGain.gain.value = F.wet;
-    this._eq(wet, P.eq.reverb).connect(wetGain).connect(this.master);
+    this.dryBus = ctx.createGain(); this.dryBus.gain.value = F.dry; this.dryBus.connect(this.master);
+    this.revIn = ctx.createGain();
+    this.revOut = ctx.createGain();       // keluaran semua konvolver (bisa lebih dari satu saat bertukar IR)
+    let wet = this.revOut;
+    if (F.motion > 0) wet = this._modDelay(this.revOut, { centre: 0.014, depth: 0.003, rate: 0.07, mix: 0.5 * F.motion });
+    this.wetGain = ctx.createGain(); this.wetGain.gain.value = F.wet;
+    this._eq(wet, P.eq.reverb).connect(this.wetGain).connect(this.master);
 
-    this.layerIn = {};
+    this.layerIn = {}; this.layerLvl = {};
     for (const k of ["drone", "pad", "melody", "texture"]) {
-      const inp = ctx.createGain();
-      let node = this._eq(inp, P.eq[k]);
+      const inp = ctx.createGain(), lvl = ctx.createGain();   // lvl: level lapisan, bisa diubah langsung
+      inp.connect(lvl);
+      let node = this._eq(lvl, P.eq[k]);
       if (k === "pad") node = this._modDelay(node, { centre: 0.009, depth: 0.0015, rate: 0.12, mix: 0.35 });
       if (k === "melody") {
-        const out = ctx.createGain(), dry = ctx.createGain(), wetG = ctx.createGain(), d = ctx.createDelay(5), fb = ctx.createGain();
-        d.delayTime.value = F.delaySeconds; fb.gain.value = F.delayFeedback;
+        const out = ctx.createGain(), dry = ctx.createGain(), wetG = ctx.createGain(), d = ctx.createDelay(5);
+        this.delayFb = ctx.createGain();
+        d.delayTime.value = F.delaySeconds; this.delayFb.gain.value = F.delayFeedback;
         dry.gain.value = 1 - F.delayMix; wetG.gain.value = F.delayMix;
-        node.connect(dry).connect(out); node.connect(d); d.connect(fb).connect(d); d.connect(wetG).connect(out);
+        node.connect(dry).connect(out); node.connect(d); d.connect(this.delayFb).connect(d); d.connect(wetG).connect(out);
         node = out;
       }
-      node.connect(dryBus);
-      const send = ctx.createGain(); send.gain.value = F.send[k]; node.connect(send).connect(revIn);
-      this.layerIn[k] = inp;
+      node.connect(this.dryBus);
+      const send = ctx.createGain(); send.gain.value = F.send[k]; node.connect(send).connect(this.revIn);
+      this.layerIn[k] = inp; this.layerLvl[k] = lvl;
     }
-    // tekstur: pink noise loop -> band-pass bergerak (per kanal) -> amplitudo
-    if (P.texture.level > 0) {
-      const src = ctx.createBufferSource(); src.buffer = pinkBuffer(ctx, rngFor(this.seed, "pink"), 23); src.loop = true;
-      const split = ctx.createChannelSplitter(2), merge = ctx.createChannelMerger(2);
-      src.connect(split);
-      this.texBand = []; this.texAmp = [];
-      for (let ch = 0; ch < 2; ch++) {
-        const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.2;
-        const g = ctx.createGain(); g.gain.value = 0;
-        split.connect(bp, ch); bp.connect(g).connect(merge, 0, ch);
-        this.texBand.push(bp); this.texAmp.push(g);
-      }
-      const lvl = ctx.createGain(); lvl.gain.value = P.texture.level * 0.35;
-      merge.connect(lvl).connect(this.layerIn.texture);
-      src.start(this.t0);
-      this.nodes.add(src);
-      const r = rngFor(this.seed, "texlfo");
-      this.texPh = [0, 1].map(() => P.texture.periods.map(() => r.uniform(0, 6.28)).concat([r.uniform(0, 6.28)]));
+    // tekstur: pink noise loop -> band-pass bergerak (per kanal) -> amplitudo. Selalu dibangun,
+    // supaya level angin bisa dinaikkan dari 0 secara langsung.
+    const src = ctx.createBufferSource(); src.buffer = pinkBufferCached(ctx); src.loop = true;
+    const split = ctx.createChannelSplitter(2), merge = ctx.createChannelMerger(2);
+    src.connect(split);
+    this.texBand = []; this.texAmp = [];
+    for (let ch = 0; ch < 2; ch++) {
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 1.2;
+      const g = ctx.createGain(); g.gain.value = 0;
+      split.connect(bp, ch); bp.connect(g).connect(merge, 0, ch);
+      this.texBand.push(bp); this.texAmp.push(g);
     }
+    merge.connect(this.layerIn.texture);
+    this._startLater.push(src); this.nodes.add(src);
+    const r = rngFor(this.seed, "texlfo");
+    this.texPh = [0, 1].map(() => P.texture.periods.map(() => r.uniform(0, 6.28)).concat([r.uniform(0, 6.28)]));
+    if (this.offline) this.begin();
+  }
+
+  async _loadIR(F, first = false) {
+    const key = { decay: F.decay, predelay: F.predelay, hp: F.reverbHp, early: F.early, width: F.width };
+    const buf = await makeIRAsync(this.ctx.sampleRate, this.seed, key);
+    if (this.stopped) return;
+    const conv = this.ctx.createConvolver(); conv.normalize = false; conv.buffer = buf;
+    const g = this.ctx.createGain();
+    this.revIn.connect(conv).connect(g).connect(this.revOut);
+    if (first || this.offline) { g.gain.value = 1; this.conv = { conv, g }; return; }
+    // tukar IR dengan crossfade, supaya tidak ada klik
+    const t = this.ctx.currentTime, old = this.conv;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 1.5);
+    old.g.gain.setValueAtTime(old.g.gain.value, t); old.g.gain.linearRampToValueAtTime(0, t + 1.5);
+    setTimeout(() => { old.conv.disconnect(); old.g.disconnect(); }, 2000);
+    this.conv = { conv, g };
   }
 
   // ---------- suara ----------
-  _padVoice(dest, p, midi, songT, dur, rng, { attack, release, subLevel = 0, shapeBright = 0, fadeShape = "sin2" }) {
+  _filterFn(v, ch) {
+    const p = v.p;
+    return (x) => {
+      const m = 0.5 + 0.5 * Math.sin((2 * Math.PI * x) / p.lfoPeriod + v.lfoPh + ch * 0.4);
+      const bright = v.shapeBright ? 2 ** (v.shapeBright * (this.shape(v.songT + x) - 0.5)) : 1;
+      return Math.min(this.ctx.sampleRate * 0.45, p.cutMin * (p.cutMax / p.cutMin) ** m * bright);
+    };
+  }
+
+  _padVoice(dest, p, midi, songT, dur, rng, { attack, release, subLevel = 0, shapeBright = 0, fadeShape = "sin2", kind = "pad" }) {
     const ctx = this.ctx, t = this.t0 + songT, f0 = midiToHz(midi), k = p.nOsc;
     const NH = 64, real = new Float32Array(NH), imag = new Float32Array(NH);
     for (let h = 1; h < NH; h++) {
@@ -166,17 +205,13 @@ export class Engine {
       const g = ctx.createGain(); g.gain.value = subLevel * Math.SQRT1_2 * 0.6;
       s.connect(g).connect(bus); oscs.push(s);
     }
-    const lfoPh = rng.uniform(0, 6.28);
+    const v = { kind, p, songT, dur, lfoPh: rng.uniform(0, 6.28), shapeBright, flts: [] };
     const sp = ctx.createChannelSplitter(2), mg = ctx.createChannelMerger(2);
     bus.connect(sp);
     for (let ch = 0; ch < 2; ch++) {
       const flt = ctx.createBiquadFilter(); flt.type = "lowpass"; flt.Q.value = p.q ?? 0.7071;
-      this._curve(flt.frequency, t, dur, (x) => {
-        const m = 0.5 + 0.5 * Math.sin((2 * Math.PI * x) / p.lfoPeriod + lfoPh + ch * 0.4);
-        const bright = shapeBright ? 2 ** (shapeBright * (this.shape(songT + x) - 0.5)) : 1;
-        return Math.min(ctx.sampleRate * 0.45, p.cutMin * (p.cutMax / p.cutMin) ** m * bright);
-      });
-      sp.connect(flt, ch); flt.connect(mg, 0, ch);
+      this._curve(flt.frequency, t, dur, this._filterFn(v, ch));
+      sp.connect(flt, ch); flt.connect(mg, 0, ch); v.flts.push(flt);
     }
     const env = ctx.createGain(); env.gain.value = 0;
     const a = Math.min(attack, dur / 2), r = Math.min(release, dur - a);
@@ -184,16 +219,17 @@ export class Engine {
     this._curve(env.gain, t, dur, (x) => (x < a ? fade(x / a) : x > dur - r ? fade(Math.max(0, (dur - x) / r)) : 1));
     mg.connect(env).connect(dest);
     for (const o of oscs) { o.start(t); o.stop(t + dur + 0.05); this._track(o); }
+    if (!this.offline) this.voices.push(v);
   }
 
   _melodyVoice(midi, songT, vel, rng) {
     const ctx = this.ctx, M = this.P.melody, t = this.t0 + songT, decay = M.decay;
     const f = midiToHz(midi) * 2 ** (rng.uniform(-3, 3) / 1200);
     const pan = ctx.createStereoPanner(); pan.pan.value = rng.uniform(0.2, 0.8) * 2 - 1;
-    const out = ctx.createGain(); out.gain.value = M.level * vel * (TIMBRE_GAIN[M.timbre] ?? 1);
+    const out = ctx.createGain(); out.gain.value = vel * (TIMBRE_GAIN[M.timbre] ?? 1);   // level di lapisan
     out.connect(pan).connect(this.layerIn.melody);
     const len = Math.min(decay * 2.5, 40), oscs = [];
-    const partial = (freq, amp, tau, attack, phase = 0) => {
+    const partial = (freq, amp, tau, attack) => {
       const o = ctx.createOscillator(); o.frequency.value = freq;
       const g = ctx.createGain(); g.gain.value = 0;
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(amp, t + attack);
@@ -229,13 +265,27 @@ export class Engine {
     for (const o of oscs) { o.start(t); o.stop(t + len); this._track(o); }
   }
 
-  /** setValueCurveAtTime yang aman: bagian yang sudah lewat dipotong (browser akan memundurkan
-   *  waktu mulai ke "sekarang" dan kurva bisa bertabrakan dengan kurva berikutnya). */
+  /** setValueCurveAtTime yang aman: bagian yang sudah lewat dipotong. */
   _curve(param, start, dur, fn) {
     const now = this.offline ? 0 : this.ctx.currentTime + 0.02;
     const skip = Math.max(0, now - start);
     if (skip >= dur - 0.05) return;
     param.setValueCurveAtTime(curve(dur - skip, (x) => fn(x + skip)), start + skip, dur - skip);
+  }
+
+  /** Ganti kurva yang sedang berjalan mulai sekarang, dengan transisi halus dari nilai saat ini. */
+  _recurve(param, start, dur, fn) {
+    const t = this.ctx.currentTime + 0.03, rem = start + dur - t - 0.02;
+    if (rem < 0.2 || t < start) return false;
+    const held = param.value;
+    if (param.cancelAndHoldAtTime) param.cancelAndHoldAtTime(t);
+    else { param.cancelScheduledValues(t); param.setValueAtTime(held, t); }
+    const off = t + 0.01 - start;
+    param.setValueCurveAtTime(curve(rem, (x) => {
+      const k = Math.min(1, x / GLIDE), target = fn(off + x);
+      return held * (1 - k) + target * k;
+    }), t + 0.01, rem);
+    return true;
   }
 
   _track(node) { this.nodes.add(node); node.onended = () => this.nodes.delete(node); }
@@ -244,62 +294,115 @@ export class Engine {
   /** Jadwalkan semua yang mulai sebelum waktu lagu T (detik). */
   scheduleUntil(T) {
     const P = this.P, end = this.total ?? Infinity, until = Math.min(T, end);
-    // drone: potongan bersambung dengan crossfade equal-power
-    while (this.droneChunk * (DRONE_CHUNK - DRONE_XF) < until && P.drone.level > 0) {
+    while (this.droneChunk * (DRONE_CHUNK - DRONE_XF) < until) {
       const i = this.droneChunk++, st = i * (DRONE_CHUNK - DRONE_XF);
       const dur = Math.min(DRONE_CHUNK, end - st);
       if (dur <= 0) break;
       const last = st + dur >= end;
       P.droneNotes.forEach((m, j) => this._padVoice(this.layerIn.drone, P.drone, m, st, dur, rngFor(this.seed, "drone", i, j), {
         attack: i === 0 ? P.drone.attack : DRONE_XF, release: last ? 20 : DRONE_XF, fadeShape: i === 0 && !last ? "sin2" : "sin",
-        subLevel: j === 0 ? P.drone.sub : 0,
+        subLevel: j === 0 ? P.drone.sub : 0, kind: "drone",
       }));
     }
-    // chord pad
     this.comp.chordsUntil(until + 10);
     while (this.scheduledChord < this.comp.chords.length && this.comp.chords[this.scheduledChord].start < until) {
       const c = this.comp.chords[this.scheduledChord++];
       const dur = Math.min(c.dur, end - c.start);
-      if (dur <= 1 || P.pad.level <= 0) continue;
-      c.notes.forEach((m) => this._padVoice(this.layerIn.pad, { ...P.pad }, m, c.start, dur, rngFor(this.seed, "pad", c.start.toFixed(3), m), {
+      if (dur <= 1) continue;
+      c.notes.forEach((m) => this._padVoice(this.layerIn.pad, P.pad, m, c.start, dur, rngFor(this.seed, "pad", c.start.toFixed(3), m), {
         attack: P.chordOverlap, release: P.chordOverlap, shapeBright: P.pad.shapeBright,
       }));
     }
-    // melodi
     for (const n of this.comp.melodyUntil(until)) if (n.t < end - 8) this._melodyVoice(n.midi, n.t, n.vel, rngFor(this.seed, "mel", n.t.toFixed(3), n.midi));
-    // tekstur: kurva per potongan
-    if (this.texBand) {
-      const T_ = P.texture;
-      while (this.texChunk * TEX_CHUNK < until) {
-        const st = this.texChunk++ * TEX_CHUNK, dur = Math.min(TEX_CHUNK, end - st) - 1e-3;
-        if (dur <= 0) break;
-        for (let ch = 0; ch < 2; ch++) {
-          const ph = this.texPh[ch];
-          this._curve(this.texBand[ch].frequency, this.t0 + st, dur, (x) => {
-            const tt = st + x;
-            const m = T_.periods.reduce((a, per, i) => a + 0.5 + 0.5 * Math.sin((2 * Math.PI * tt) / per + ph[i]), 0) / T_.periods.length;
-            return T_.bandLo * (T_.bandHi / T_.bandLo) ** m;
-          });
-          this._curve(this.texAmp[ch].gain, this.t0 + st, dur, (x) => {
-            const tt = st + x;
-            let amp = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin((2 * Math.PI * tt) / (T_.periods[ch % 3] * 1.7) + ph[ph.length - 1]));
-            const k = T_.shapeAmount; amp *= (1 - k) + k * (0.25 + 1.5 * this.shape(tt));
-            if (this.sections) amp *= this.sections.textureMult(tt);
-            const fadeIn = Math.min(1, tt / 20), fadeOut = this.total ? Math.min(1, Math.max(0, (this.total - tt) / 30)) : 1;
-            return amp * fadeIn * fadeOut;
-          });
-        }
+    while (this.texChunk * TEX_CHUNK < until) {
+      const st = this.texChunk++ * TEX_CHUNK, dur = Math.min(TEX_CHUNK, end - st) - 1e-3;
+      if (dur <= 0) break;
+      this.texCur = { st, dur };
+      for (let ch = 0; ch < 2; ch++) {
+        this._curve(this.texBand[ch].frequency, this.t0 + st, dur, this._texBandFn(st, ch));
+        this._curve(this.texAmp[ch].gain, this.t0 + st, dur, this._texAmpFn(st, ch));
       }
+    }
+    // buang catatan suara yang sudah selesai
+    if (this.voices.length > 64) { const n = this.now(); this.voices = this.voices.filter((v) => v.songT + v.dur > n); }
+  }
+
+  _texBandFn(st, ch) {
+    const T_ = this.P.texture, ph = this.texPh[ch];
+    return (x) => {
+      const tt = st + x;
+      const m = T_.periods.reduce((a, per, i) => a + 0.5 + 0.5 * Math.sin((2 * Math.PI * tt) / per + ph[i]), 0) / T_.periods.length;
+      return T_.bandLo * (T_.bandHi / T_.bandLo) ** m;
+    };
+  }
+
+  _texAmpFn(st, ch) {
+    const T_ = this.P.texture, ph = this.texPh[ch];
+    return (x) => {
+      const tt = st + x;
+      let amp = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin((2 * Math.PI * tt) / (T_.periods[ch % 3] * 1.7) + ph[ph.length - 1]));
+      const k = T_.shapeAmount; amp *= (1 - k) + k * (0.25 + 1.5 * this.shape(tt));
+      if (this.sections) amp *= this.sections.textureMult(tt);
+      const fadeIn = Math.min(1, tt / 20), fadeOut = this.total ? Math.min(1, Math.max(0, (this.total - tt) / 30)) : 1;
+      return amp * fadeIn * fadeOut;
+    };
+  }
+
+  _applyLevels(glide = GLIDE / 3) {
+    const P = this.P, t = this.ctx.currentTime;
+    const set = (param, v) => { if (glide) param.setTargetAtTime(v, t, glide); else param.value = v; };
+    set(this.layerLvl.pad.gain, P.pad.level);
+    set(this.layerLvl.drone.gain, P.drone.level);
+    set(this.layerLvl.melody.gain, P.melody.level);
+    set(this.layerLvl.texture.gain, P.texture.level * 0.35);
+    set(this.dryBus.gain, P.fx.dry);
+    set(this.wetGain.gain, P.fx.wet);
+    set(this.delayFb.gain, P.fx.delayFeedback);
+  }
+
+  /**
+   * Terapkan parameter baru tanpa memulai ulang lagu. Level & gema langsung; warna suara pad/drone
+   * pada nada yang sedang berbunyi; melodi & chord pada nada berikutnya; panjang gema dengan
+   * crossfade reverb. Nada dasar/suasana/nomor versi tetap butuh mulai ulang (lihat app.js).
+   */
+  update(P) {
+    const old = this.P;
+    this.P = P;
+    this._applyLevels();
+    const changed = (a, b) => JSON.stringify(a) !== JSON.stringify(b);
+    if (changed(old.form, P.form)) { this.shape = makeShape(this.total, this.seed, P.form); this.comp.shape = this.shape; }
+    if (old.variation !== P.variation || old.melody.level > 0 !== P.melody.level > 0) {
+      this.sections = this._sections(P);
+      this.comp.sections = this.sections;
+    }
+    this.comp.setParams(P);
+    // nada yang sedang berbunyi: ganti kurva filternya
+    const n = this.now();
+    for (const v of this.voices) {
+      if (v.songT + v.dur <= n) continue;
+      const np = v.kind === "drone" ? P.drone : P.pad;
+      if (!changed({ a: np.cutMin, b: np.cutMax, c: np.lfoPeriod, d: np.q, e: P.pad.shapeBright }, { a: v.p.cutMin, b: v.p.cutMax, c: v.p.lfoPeriod, d: v.p.q, e: v.shapeBright })
+          && !changed(old.form, P.form)) continue;
+      v.p = np; if (v.kind === "pad") v.shapeBright = P.pad.shapeBright;
+      v.flts.forEach((f, ch) => { f.Q.setTargetAtTime(np.q ?? 0.7071, this.ctx.currentTime, 0.2); this._recurve(f.frequency, this.t0 + v.songT, v.dur, this._filterFn(v, ch)); });
+    }
+    // tekstur: potongan yang sedang berjalan
+    if (this.texCur && (changed(old.texture, P.texture) || changed(old.form, P.form) || old.variation !== P.variation)) {
+      const { st, dur } = this.texCur;
+      for (let ch = 0; ch < 2; ch++) {
+        this._recurve(this.texBand[ch].frequency, this.t0 + st, dur, this._texBandFn(st, ch));
+        this._recurve(this.texAmp[ch].gain, this.t0 + st, dur, this._texAmpFn(st, ch));
+      }
+    }
+    const irKey = (F) => [F.decay, F.early, F.width].join("|");
+    if (irKey(old.fx) !== irKey(P.fx)) {
+      clearTimeout(this._irTimer);
+      this._irTimer = setTimeout(() => this._loadIR(P.fx), 250);
     }
   }
 
-  applyLevels() {
-    // level lapisan pad & drone diterapkan di input lapisan (pad_voice sendiri tanpa level)
-    this.layerIn.pad.gain.value = this.P.pad.level;
-    this.layerIn.drone.gain.value = this.P.drone.level;
-  }
-
   stop(fade = 1.5) {
+    this.stopped = true;
     const g = this.out.gain, t = this.ctx.currentTime;
     g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + fade);
     setTimeout(() => { for (const n of this.nodes) { try { n.stop(); } catch (e) { /* sudah berhenti */ } } this.out.disconnect(); }, fade * 1000 + 100);

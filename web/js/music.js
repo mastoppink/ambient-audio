@@ -215,15 +215,8 @@ export function chordLabel(P, name) {
 export class Composer {
   constructor(P, seed, shape, sections = null) {
     this.P = P; this.shape = shape; this.sections = sections;
-    // bobot chord: chord tambahan hanya kalau cocok; "rasa harmoni" sedikit berbeda per versi
-    const jr = rngFor(seed, "harmony");
-    this.weights = {};
-    for (const n of Object.keys(CHORDS)) {
-      let w = P.chordWeights[n] ?? CHORDS[n][1];
-      if (EXTRA_CHORDS.includes(n)) w = P.variation > 0 && this._chordOk(n) ? w * P.variation : 0;
-      if (P.variation > 0) w *= Math.exp(jr.uniform(-0.6, 0.6) * P.variation);
-      this.weights[n] = w;
-    }
+    this.seed = seed;
+    this._weights();
     this.rc = rngFor(seed, "chords"); this.rm = rngFor(seed, "melody");
     this.chords = []; this.nextChordT = 0; this.prevName = null; this.prevNotes = [];
     const [lo, hi] = P.melody.range;
@@ -250,6 +243,33 @@ export class Composer {
       this.chords.push({ start: this.nextChordT, dur, name, label: chordLabel(P, name), notes });
       this.prevName = name; this.prevNotes = notes;
       this.nextChordT += dur - P.chordOverlap;
+    }
+  }
+
+  /** bobot chord: chord tambahan hanya kalau cocok; "rasa harmoni" sedikit berbeda per versi */
+  _weights() {
+    const P = this.P, jr = rngFor(this.seed, "harmony");
+    this.weights = {};
+    for (const n of Object.keys(CHORDS)) {
+      let w = P.chordWeights[n] ?? CHORDS[n][1];
+      if (EXTRA_CHORDS.includes(n)) w = P.variation > 0 && this._chordOk(n) ? w * P.variation : 0;
+      const j = jr.uniform(-0.6, 0.6);
+      if (P.variation > 0) w *= Math.exp(j * P.variation);
+      this.weights[n] = w;
+    }
+  }
+
+  /** Parameter baru saat lagu berjalan: berlaku untuk chord & nada berikutnya. */
+  setParams(P) {
+    const oldRange = this.P.melody.range.join(), cur = this.pool[this.mIdx];
+    this.P = P;
+    this._weights();
+    if (P.melody.range.join() !== oldRange) {
+      const [lo, hi] = P.melody.range;
+      this.pool = [];
+      for (let m = lo; m <= hi; m++) if (P.scale.includes(mod(m - P.tonic, 12))) this.pool.push(m);
+      let best = 0; this.pool.forEach((m, i) => { if (Math.abs(m - cur) < Math.abs(this.pool[best] - cur)) best = i; });
+      this.mIdx = best;
     }
   }
 

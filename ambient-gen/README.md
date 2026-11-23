@@ -80,10 +80,14 @@ Diterbitkan ke GitHub Pages oleh `.github/workflows/pages.yml` setiap push yang 
 | File | Isi |
 |---|---|
 | `web/js/music.js` | RNG ber-seed, preset → parameter (port `settings.py`), komposisi (port `compose.py`) |
-| `web/js/engine.js` | Graf Web Audio: pad/drone, melodi, tekstur, EQ, chorus, delay, reverb; real-time & offline |
-| `web/js/dsp.js` | IR reverb sintetis, pink noise, loudness BS.1770, limiter, penulis WAV |
+| `web/js/engine.js` | Graf Web Audio: pad/drone, melodi, tekstur, EQ, chorus, delay, reverb; real-time & offline. `update()` menerapkan slider langsung (filter nada yang sedang berbunyi diganti dengan glide, IR ditukar dengan crossfade) |
+| `web/js/dsp.js` | IR reverb dirender async di OfflineAudioContext (native, di-cache), pink noise (di-cache), loudness BS.1770, limiter, penulis WAV |
 | `web/js/app.js` | Antarmuka, volume otomatis ke target LUFS, ekspor WAV & `.toml` |
 
 Diukur dengan `qc.py` (Nebula, 60 s): keseimbangan spektrum per pita dalam ±1,6 dB dari versi Python.
 Belum ada di web: shimmer, timbre "bernapas" pada pad. Urutan nada berbeda dari Python untuk seed yang sama;
 ekspor `.toml` menulis nilai yang sudah dipilih untuk seed itu, jadi warna suaranya sama.
+
+Performa web (Chromium, 7 kali geser slider saat memutar): waktu halaman macet total 6,3 s → 0 ms
+(CPU 4x lebih lambat: 27,5 s → 57 ms). Bunyi dihitung oleh mesin audio bawaan browser; WebAssembly
+tidak diperlukan karena hambatannya ada pada pembangunan ulang mesin, bukan pada perhitungan suara.
