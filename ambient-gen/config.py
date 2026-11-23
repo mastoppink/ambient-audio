@@ -57,7 +57,7 @@ FX = dict(
     reverb_decay=11.0,    # detik (RT60 IR sintetis)
     reverb_predelay=0.03,
     reverb_hp=180.0,      # high-pass di jalur reverb: cegah keruh
-    send=dict(drone=0.25, pad=0.45, melody=0.85, texture=0.6),
+    send=dict(drone=0.25, pad=0.45, melody=0.85, texture=0.6, cloud=0.95),
     delay_seconds=0.75 * 60 / 50,   # titik-titik delay panjang
     delay_feedback=0.3,
     delay_mix=0.25,       # hanya untuk melodi
@@ -85,6 +85,8 @@ EQ = {
             ("peak", 1000, 2.5, 0.6)],      # beri "badan" pada pad
     "melody": [("hp", 200, 0, 0.7)],
     "texture": [],
+    "cloud": [("hp", 350, 0, 0.7),            # awan hanya di atas: tidak menebalkan low-mid
+              ("highshelf", 6000, -3.0, 0.7)],  # kilau lembut, tidak tajam
     "reverb": [("hp", 220, 0, 0.6),         # ekor reverb bersih dari bass
                ("lowshelf", 300, -2.0, 0.7),
                ("peak", 350, -3.0, 0.9)],
@@ -93,3 +95,7 @@ EQ = {
 
 # --- Kehangatan analog (fx.Warmth) ---
 WARMTH = dict(amount=0.0, tape=0.0, noise=0.0)
+
+# --- Lapisan awan (synth.cloud_segment) ---
+CLOUD = dict(level=0.0, density=10.0, length=0.25, octaves=(1, 1, 2))
+CHORD_TIMELINE = None     # diisi compose(): progresi chord untuk lapisan awan

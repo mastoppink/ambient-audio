@@ -12,6 +12,7 @@ drone = 0.65
 pad = 0.5
 melody = 0.12
 texture = 0.025
+cloud = 0.12
 
 [pad]
 brightness = [0.28, 0.42]  # rentang: tiap seed sedikit beda warna
@@ -52,3 +53,8 @@ amount = 0.3   # perubahan antar babak tipis, supaya tetap menenangkan
 
 [warmth]
 noise = 0.05   # hampir tanpa desis: untuk tidur/meditasi
+
+[cloud]
+density = 4.0
+length = 0.6    # butir panjang: lembut, tidak berkilau
+register = 0.2

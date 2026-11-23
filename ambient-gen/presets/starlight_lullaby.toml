@@ -12,6 +12,7 @@ drone = 0.8
 pad = 0.55
 melody = 0.15
 texture = 0.02
+cloud = 0.14
 
 [pad]
 brightness = [0.35, 0.45]
@@ -55,3 +56,8 @@ amount = 0.3
 
 [warmth]
 noise = 0.05   # hampir tanpa desis: untuk tidur/meditasi
+
+[cloud]
+density = 5.0
+length = 0.5
+register = 0.4

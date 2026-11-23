@@ -6,10 +6,10 @@ dikerjakan paralel dan memorinya tetap kecil.
 import numpy as np
 
 import config
-from synth import pad_voice, melody_voice, texture_segment
+from synth import pad_voice, melody_voice, texture_segment, cloud_segment
 
 SR = config.SAMPLE_RATE
-LAYER_NAMES = ("drone", "pad", "melody", "texture")
+LAYER_NAMES = ("drone", "pad", "melody", "texture", "cloud")
 
 
 def _layer(name):
@@ -62,6 +62,9 @@ def render_segment(events, seg_start, seg_n, seed, seg_index=0):
         sec = config.SECTIONS
         out["texture"] = texture_segment(seg_start / SR, seg_n, seed, seg_index, tp, config.SHAPE,
                                          sec.texture_mult if sec is not None else None) * tp["level"]
+    if config.CLOUD["level"] > 0 and config.CHORD_TIMELINE:
+        out["cloud"] = cloud_segment(seg_start / SR, seg_n, seed, config.CHORD_TIMELINE, config.CLOUD,
+                                     config.SHAPE, config.SECTIONS)
     if seg_start < 20 * SR:   # fade-in tekstur 20 detik pertama
         t = (seg_start + np.arange(seg_n)) / SR
         out["texture"] *= np.clip(t / 20, 0, 1)[:, None]

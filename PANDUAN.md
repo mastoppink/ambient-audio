@@ -169,6 +169,10 @@ Pengaturan yang paling berguna:
 | `space.shimmer` | 0 – 1 | Kilau halus di gema |
 | `space.reverb_type` | `hall`, `classic` | Jenis gema: `hall` = ekor bergerak halus (bawaan), `classic` = gema lama yang statis |
 | `space.size` | 0.6 – 1.6 | Ukuran ruang gema: kecil = rapat, besar = lapang |
+| `mix.cloud` | mis. `0.18` | Volume lapisan "awan" (butir suara berkilau dari nada chord), 0 = mati |
+| `cloud.density` | 2 – 20 | Banyaknya butir per detik |
+| `cloud.length` | 0.1 – 1.0 | Panjang butir (detik): pendek = berkilau, panjang = lembut |
+| `cloud.register` | 0 – 1 | Tinggi nada awan: rendah = dekat pad, tinggi = berkilau di atas |
 | `warmth.amount` | 0 – 1 | Kehangatan "kaset": 0 = bersih digital, 1 = jelas terasa kaset |
 | `warmth.tape` | 0 – 1 | Goyangan nada halus seperti pita kaset |
 | `warmth.noise` | 0 – 1 | Desis pita (0 = mati) |

@@ -30,7 +30,7 @@ DEFAULTS = {
     "seed": config.SEED,
     "duration_min": 10,
     "key": {"tonic": "D", "mode": "lydian"},
-    "mix": {"drone": 0.8, "pad": 0.55, "melody": 0.22, "texture": 0.05},
+    "mix": {"drone": 0.8, "pad": 0.55, "melody": 0.22, "texture": 0.05, "cloud": 0.18},
     "pad": {
         "brightness": 0.55,          # 0 gelap .. 1 terang (cutoff + kadar saw)
         "width": 0.5,                # 0 sempit .. 1 lebar (detune + stereo)
@@ -69,7 +69,12 @@ DEFAULTS = {
         "bright": 0.8,               # seberapa jauh intensitas membuka filter pad (oktaf)
     },
     "master": {"target_lufs": -16.0},
-    "warmth": {                      # kehangatan analog (meniru pita kaset)
+    "cloud": {                       # lapisan awan: butir suara berkilau dari nada chord
+        "density": 10.0,             # butir per detik (rata-rata)
+        "length": 0.25,              # panjang butir rata-rata (detik): pendek = berkilau, panjang = lembut
+        "register": 0.5,             # 0 = dekat pad .. 1 = tinggi berkilau
+    },
+        "warmth": {                      # kehangatan analog (meniru pita kaset)
         "amount": 0.5,               # 0 bersih digital .. 1 jelas "kaset" (saturasi + warna nada)
         "tape": 0.5,                 # 0 .. 1 goyangan pita (wow & flutter), 0.5 = +-1,5 cent
         "noise": 0.25,               # 0 = tanpa desis .. 1 desis pita terdengar (-50 dB)
@@ -199,6 +204,11 @@ def apply(r):
     fm = r["form"]
     config.VARIATION = float(r["variation"]["amount"])
     config.WARMTH = {k: float(r["warmth"][k]) for k in ("amount", "tape", "noise")}
+    cl = r["cloud"]
+    reg = float(cl["register"])
+    octs = (0, 1, 1) if reg < 0.34 else (1, 1, 2) if reg < 0.67 else (1, 2, 2)
+    config.CLOUD = dict(level=float(mix.get("cloud", 0.0)), density=float(cl["density"]),
+                        length=float(cl["length"]), octaves=octs)
     config.PAD["shape_bright"] = fm["amount"] * fm["bright"]
     tb = r["texture"]["brightness"]
     config.TEXTURE = dict(config.TEXTURE, level=mix["texture"], shape_amount=fm["amount"],

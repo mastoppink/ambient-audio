@@ -296,3 +296,55 @@ def melody_voice(timbre, midi, duration, rng, decay, pan, vel=1.0, offset=0, n=N
     env[m] *= (total_n - idx[m]) / tail
     x = x * env * vel * TIMBRE_GAIN.get(timbre, 1.0)
     return _fit(np.stack([x * np.cos(pan * np.pi / 2), x * np.sin(pan * np.pi / 2)], axis=1), n)
+
+
+# ---------- lapisan "awan": butir-butir suara pendek dari nada chord (granular) ----------
+def cloud_segment(t_start, n, seed, chords, p, shape=None, sections=None):
+    """Butir suara 80-450 ms di sekitar nada chord yang sedang berbunyi -> lapisan berkilau yang terus berubah.
+
+    Butir dibuat per "ember" 1 detik dengan sumber acak [seed, 20, ember], jadi setiap butir hanya
+    bergantung pada seed dan waktunya: render per segmen identik dengan render utuh.
+    chords: daftar (start, dur, label, notes) dari compose.chord_progression.
+    p: density (butir/detik), length (detik, rata-rata), octaves (daftar geser oktaf), level.
+    """
+    out = np.zeros((n, 2))
+    if p["level"] <= 0 or not chords:
+        return out
+    s0 = int(round(t_start * SR))
+    max_len = p["length"] * 2.0
+    starts = np.array([c[0] for c in chords])
+    b0 = int(np.floor(t_start - max_len)) - 1
+    b1 = int(np.ceil((s0 + n) / SR)) + 1
+    octs = np.array(p["octaves"], float)
+    for b in range(max(0, b0), b1):
+        rng = np.random.default_rng([seed, 20, b])
+        dens = p["density"] * (0.35 + 0.9 * float(shape(b + 0.5)) if shape is not None else 1.0)
+        if sections is not None:
+            sec = sections.at(b)
+            dens *= 0.6 + 0.4 * min(1.5, max(0.0, sec["melody"]))   # babak sepi -> awan lebih tipis
+        k = rng.poisson(dens)
+        for _ in range(k):
+            t = b + rng.random()
+            length = float(np.clip(rng.gamma(4.0, p["length"] / 4.0), 0.08, max_len))
+            ci = int(np.searchsorted(starts, t, side="right") - 1)
+            notes = chords[max(ci, 0)][3]
+            midi = notes[int(rng.integers(len(notes)))] + 12 * octs[int(rng.integers(len(octs)))]
+            f = midi_to_hz(midi) * 2 ** (rng.uniform(-8, 8) / 1200)
+            amp = rng.uniform(0.35, 1.0)
+            pan = rng.uniform(0.1, 0.9)
+            ph = rng.uniform(0, 2 * np.pi, 3)
+            # bagian butir yang jatuh di segmen ini
+            g0 = int(round(t * SR))
+            gl = int(length * SR)
+            lo, hi = max(g0, s0), min(g0 + gl, s0 + n)
+            if lo >= hi or f > 9000:
+                continue
+            idx = np.arange(lo - g0, hi - g0)
+            u = idx / gl
+            env = np.sin(np.pi * u) ** 2                       # jendela Hann: tanpa klik
+            w = (np.sin(2 * np.pi * f * idx / SR + ph[0]) + 0.25 * np.sin(4 * np.pi * f * idx / SR + ph[1])
+                 + 0.08 * np.sin(6 * np.pi * f * idx / SR + ph[2]))
+            x = w * env * amp
+            out[lo - s0:hi - s0, 0] += x * np.cos(pan * np.pi / 2)
+            out[lo - s0:hi - s0, 1] += x * np.sin(pan * np.pi / 2)
+    return out * p["level"]

@@ -12,6 +12,7 @@ drone = 0.7
 pad = 0.5
 melody = 0.16
 texture = 0.04
+cloud = 0.16
 
 [pad]
 brightness = [0.38, 0.5]
@@ -51,3 +52,8 @@ target_lufs = -14.0
 
 [qc]
 profile = "calm"
+
+[cloud]
+density = 6.0
+length = 0.45
+register = 0.3

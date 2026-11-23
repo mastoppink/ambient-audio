@@ -219,6 +219,7 @@ def compose(total, seed, with_melody=False):
     jadi awal komposisi sama berapa pun durasinya (preview = awal versi panjang)."""
     events = [Event(0.0, total, m, "drone", "drone") for m in config.DRONE_NOTES]
     chords = chord_progression(total, np.random.default_rng([seed, 1]), seed)
+    config.CHORD_TIMELINE = chords   # dipakai lapisan awan (render)
     for start, dur, name, notes in chords:
         dur = min(dur, total - start)
         events += [Event(round(start, 3), round(dur, 3), m, "pad", name) for m in notes]

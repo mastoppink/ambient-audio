@@ -110,3 +110,12 @@ Versi web masih memakai konvolusi.
 (low-shelf +1,2·amount dB di 90 Hz, high-shelf -2,5·amount dB di 9 kHz, lowpass), dan desis pita relatif.
 Terukur: harmonik ke-2/ke-3 -62/-52 dB (amount 0,3) sampai -38 dB (amount 1); wow ±1,5 cent (tape 0,5);
 desis -60 dB relatif musik (noise 0,25). Pada mix Nebula: pita frekuensi berubah ≤ 0,8 dB, true peak turun ~1 dB.
+
+## Lapisan awan (`[cloud]`, `mix.cloud`)
+
+`synth.cloud_segment`: butir sinus (+ harmonik ke-2/ke-3) 80-450 ms dengan jendela Hann, nada diambil dari chord
+yang sedang berbunyi (digeser 0-2 oktaf menurut `register`), detune ±8 cent, pan acak. Dibuat per ember 1 detik
+dengan sumber acak [seed, 20, ember], jadi render per segmen identik. Kepadatan mengikuti kurva intensitas dan
+babak. EQ: high-pass 350 Hz, high-shelf -3 dB di 6 kHz; kirim ke reverb 0,95.
+Pada Nebula (mix.cloud 0,18): pita mid +1,1 dB, presence/air tidak naik, korelasi L/R 0,57 → 0,51 (lebih lebar),
+waktu render tidak bertambah. Versi web belum memiliki lapisan ini.
