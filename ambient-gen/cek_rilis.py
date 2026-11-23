@@ -72,9 +72,14 @@ def main():
     if a.wav:
         for w in a.wav:
             import re
-            name = re.match(r"(.+?)_s\d+_", os.path.basename(w)).group(1)   # mis. deep_sleep_s1001_120s.wav
-            with open(os.path.join(ROOT, "presets", f"{name}.toml"), "rb") as f:
-                p = tomllib.load(f)
+            resep = os.path.splitext(w)[0] + ".toml"
+            if os.path.exists(resep):          # hasil generate.py / buat.py: pakai resep di sampingnya
+                with open(resep, "rb") as f:
+                    p = tomllib.load(f)
+            else:                              # ekspor Studio web: nama preset dari nama file
+                name = re.match(r"(.+?)_s\d+_", os.path.basename(w)).group(1)   # mis. deep_sleep_s1001_120s.wav
+                with open(os.path.join(ROOT, "presets", f"{name}.toml"), "rb") as f:
+                    p = tomllib.load(f)
             target = p.get("master", {}).get("target_lufs", -16.0)
             profile = p.get("qc", {}).get("profile", "default")
             print(f"\n== {w}")
