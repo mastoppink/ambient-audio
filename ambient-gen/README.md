@@ -25,6 +25,7 @@ python -m pytest -q tests
 | `qc.py` | Laporan kualitas: LUFS, LRA, true peak, mono, keseimbangan spektrum 1/3 oktaf vs pink |
 | `harmony_check.py` | Hitung nada melodi yang bentrok (1 semiton) dengan chord |
 | `presets/*.toml` | Sembilan preset |
+| `export_web.py` | Ekspor preset + EQ ke `../web/presets.json` (jalankan setelah mengubah preset; dicek oleh tes) |
 
 ## Cara kerja
 
@@ -67,3 +68,19 @@ File `.toml` yang ditulis di samping setiap render berisi semua nilai final dan 
 ## Kinerja (4 core)
 
 60 menit: ~5 menit sintesis + master, ~1 menit MP3. Disk sementara ~2,5 GB.
+
+## Versi web (`../web`)
+
+Spacenight Studio: port JavaScript (Web Audio) untuk mencoba suara secara langsung dan mengekspor `.toml`.
+Diterbitkan ke GitHub Pages oleh `.github/workflows/pages.yml` setiap push yang mengubah `web/`.
+
+| File | Isi |
+|---|---|
+| `web/js/music.js` | RNG ber-seed, preset → parameter (port `settings.py`), komposisi (port `compose.py`) |
+| `web/js/engine.js` | Graf Web Audio: pad/drone, melodi, tekstur, EQ, chorus, delay, reverb; real-time & offline |
+| `web/js/dsp.js` | IR reverb sintetis, pink noise, loudness BS.1770, limiter, penulis WAV |
+| `web/js/app.js` | Antarmuka, volume otomatis ke target LUFS, ekspor WAV & `.toml` |
+
+Diukur dengan `qc.py` (Nebula, 60 s): keseimbangan spektrum per pita dalam ±1,6 dB dari versi Python.
+Belum ada di web: shimmer, timbre "bernapas" pada pad. Urutan nada berbeda dari Python untuk seed yang sama;
+ekspor `.toml` menulis nilai yang sudah dipilih untuk seed itu, jadi warna suaranya sama.

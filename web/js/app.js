@@ -1,0 +1,256 @@
+// Antarmuka Spacenight Studio.
+import { resolve, technical, deepMerge, MODES, NOTE_NAMES } from "./music.js";
+import { Engine } from "./engine.js";
+import { integratedLoudness, limitInPlace, wavBlob } from "./dsp.js";
+import { toToml } from "./toml.js";
+
+const SR = 48000;
+const $ = (s) => document.querySelector(s);
+let DATA, ctx = null, engine = null, timer = null, restartTimer = null;
+const state = { presetKey: null, raw: null, seed: 1, touched: new Set() };
+
+// kontrol: [path, label, min, max, step, keterangan]
+const CONTROLS = {
+  "Suara latar": [
+    ["pad.brightness", "Kecerahan", 0, 1, 0.01, "gelap → terang"],
+    ["pad.width", "Lebar", 0, 1, 0.01, "sempit → lebar"],
+    ["pad.movement", "Gerak", 0, 1, 0.01, "statis → bergerak"],
+    ["pad.life", "Analog", 0, 1, 0.01, "kaku → hidup"],
+    ["drone.brightness", "Drone: kecerahan", 0, 1, 0.01, ""],
+  ],
+  Melodi: [
+    ["melody.density", "Kepadatan", 0, 1, 0.01, "jarang → sering"],
+    ["melody.phrases", "Frasa", 0, 1, 0.01, "nada tunggal → frasa 2–3 nada"],
+    ["melody.register", "Tinggi nada", 0, 1, 0.01, "rendah → tinggi"],
+    ["melody.decay", "Panjang nada", 3, 16, 0.5, "detik"],
+  ],
+  Ruang: [
+    ["space.reverb_mix", "Gema", 0, 1, 0.01, "kering → luas"],
+    ["space.reverb_decay", "Panjang gema", 4, 18, 0.5, "detik"],
+    ["texture.brightness", "Angin: kecerahan", 0, 1, 0.01, ""],
+    ["form.amount", "Gelombang intensitas", 0, 1, 0.01, "datar → naik-turun"],
+  ],
+  Mix: [
+    ["mix.drone", "Drone", 0, 1.2, 0.01, ""],
+    ["mix.pad", "Pad", 0, 1.2, 0.01, ""],
+    ["mix.melody", "Melodi", 0, 0.5, 0.005, "0 = tanpa melodi"],
+    ["mix.texture", "Angin", 0, 0.12, 0.001, ""],
+  ],
+};
+
+const get = (o, path) => path.split(".").reduce((a, k) => a?.[k], o);
+const set = (o, path, v) => { const ks = path.split("."); let n = o; for (const k of ks.slice(0, -1)) n = n[k] ??= {}; n[ks.at(-1)] = v; };
+const fmt = (v, step) => (step >= 1 ? v.toFixed(0) : step >= 0.1 ? v.toFixed(1) : step >= 0.01 ? v.toFixed(2) : v.toFixed(3));
+
+async function init() {
+  DATA = await (await fetch("presets.json")).json();
+  const sel = $("#preset");
+  for (const [k, p] of Object.entries(DATA.presets)) sel.add(new Option(p.name, k));
+  for (const n of NOTE_NAMES) $("#tonic").add(new Option(n, n));
+  for (const m of Object.keys(MODES)) $("#mode").add(new Option(m, m));
+  buildControls();
+  sel.onchange = () => loadPreset(sel.value);
+  $("#seed").onchange = () => { state.seed = parseInt($("#seed").value || "1", 10); refresh(); };
+  $("#dice").onclick = () => { state.seed = Math.floor(Math.random() * 99999) + 1; $("#seed").value = state.seed; refresh(); };
+  $("#tonic").onchange = () => { set(state.raw, "key.tonic", $("#tonic").value); refresh(); };
+  $("#mode").onchange = () => { set(state.raw, "key.mode", $("#mode").value); refresh(); };
+  $("#timbre").onchange = () => { set(state.raw, "melody.timbre", $("#timbre").value); refresh(); };
+  $("#consonance").onchange = () => { set(state.raw, "melody.consonance", $("#consonance").checked ? 1.0 : 0.0); refresh(); };
+  $("#play").onclick = togglePlay;
+  $("#reset").onclick = () => loadPreset(state.presetKey);
+  $("#toml").onclick = downloadToml;
+  $("#render").onclick = renderWav;
+  $("#copy").onclick = () => navigator.clipboard?.writeText($("#cmd").textContent);
+  loadPreset(Object.keys(DATA.presets)[0]);
+  drawLoop();
+}
+
+function buildControls() {
+  const host = $("#controls");
+  for (const [group, items] of Object.entries(CONTROLS)) {
+    const box = document.createElement("section"); box.className = "group";
+    box.innerHTML = `<h3>${group}</h3>`;
+    for (const [path, label, min, max, step, hint] of items) {
+      const row = document.createElement("label"); row.className = "ctl";
+      row.innerHTML = `<span class="name">${label}<i class="rnd" title="diacak per seed"></i>${hint ? `<small>${hint}</small>` : ""}</span>
+        <input type="range" min="${min}" max="${max}" step="${step}" data-path="${path}">
+        <output></output>`;
+      const input = row.querySelector("input");
+      input.oninput = () => {
+        set(state.raw, path, parseFloat(input.value)); state.touched.add(path);
+        row.querySelector("output").textContent = fmt(parseFloat(input.value), step);
+        row.classList.remove("random");
+        refresh();
+      };
+      box.appendChild(row);
+    }
+    host.appendChild(box);
+  }
+}
+
+function loadPreset(key) {
+  state.presetKey = key;
+  state.raw = deepMerge(DATA.defaults, DATA.presets[key]);
+  state.seed = state.raw.seed; state.touched.clear();
+  $("#preset").value = key; $("#seed").value = state.seed;
+  refresh();
+}
+
+function current() {
+  const r = resolve(state.raw, state.seed);
+  return { r, P: technical(r, DATA) };
+}
+
+/** Perbarui tampilan; kalau sedang memutar, mulai ulang mesin dengan crossfade (debounce). */
+function refresh() {
+  const { r, P } = current();
+  $("#tonic").value = P.tonicName; $("#mode").value = P.mode;
+  $("#timbre").value = r.melody.timbre; $("#consonance").checked = r.melody.consonance > 0;
+  for (const input of document.querySelectorAll("#controls input")) {
+    const path = input.dataset.path, raw = get(state.raw, path), v = get(r, path);
+    input.value = v; input.nextElementSibling.textContent = fmt(+v, parseFloat(input.step));
+    input.parentElement.classList.toggle("random", Array.isArray(raw) && !state.touched.has(path));
+  }
+  $("#keyinfo").textContent = `${P.tonicName} ${P.mode} · target ${r.master.target_lufs} LUFS`;
+  $("#cmd").textContent = `python generate.py ${fileName()}.toml --duration 60`;
+  if (engine) { clearTimeout(restartTimer); restartTimer = setTimeout(() => startEngine(true), 450); }
+}
+
+function fileName() {
+  const base = (state.raw.name || "spacenight").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+  return `${base}_s${state.seed}`;
+}
+
+// ---------- pemutaran ----------
+async function togglePlay() {
+  if (engine) { engine.stop(); engine = null; clearInterval(timer); $("#play").textContent = "▶ Putar"; $("#play").classList.remove("on"); return; }
+  ctx ??= new AudioContext({ sampleRate: SR, latencyHint: "playback" });
+  await ctx.resume();
+  startEngine(false);
+  $("#play").textContent = "■ Berhenti"; $("#play").classList.add("on");
+}
+
+const agc = { hist: [], gainDb: 0 };
+function startEngine(crossfade) {
+  const { P } = current();
+  const old = engine;
+  engine = new Engine(ctx, P, state.seed, { total: null });
+  engine.masterGain.gain.value = 10 ** (agc.gainDb / 20);
+  if (crossfade) { engine.out.gain.setValueAtTime(0, ctx.currentTime); engine.out.gain.linearRampToValueAtTime(1, ctx.currentTime + 2.5); }
+  if (old) old.stop(2.5);
+  engine.scheduleUntil(20);
+  setupMeter();
+  clearInterval(timer);
+  timer = setInterval(tick, 250);
+}
+
+// meter loudness kira-kira (K-weighting didekati dengan biquad) + penyesuaian volume otomatis pelan
+let meter = null;
+function setupMeter() {
+  const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 38; hp.Q.value = 0.5;
+  const sh = ctx.createBiquadFilter(); sh.type = "highshelf"; sh.frequency.value = 1500; sh.gain.value = 4;
+  const sp = ctx.createChannelSplitter(2);
+  const an = [ctx.createAnalyser(), ctx.createAnalyser()];
+  an.forEach((a) => (a.fftSize = 16384));
+  engine.meterTap.connect(hp).connect(sh).connect(sp);
+  sp.connect(an[0], 0); sp.connect(an[1], 1);
+  const viz = ctx.createAnalyser(); viz.fftSize = 4096; viz.smoothingTimeConstant = 0.85;
+  engine.out.connect(viz);
+  meter = { an, buf: new Float32Array(16384), viz };
+  agc.hist = [];
+}
+
+function tick() {
+  if (!engine) return;
+  const t = engine.now();
+  engine.scheduleUntil(t + 20);
+  const { chord, intensity } = engine.info(t);
+  $("#chord").textContent = chord || "–";
+  $("#intensity").style.width = `${Math.round(intensity * 100)}%`;
+  const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
+  $("#time").textContent = `${mm}:${String(ss).padStart(2, "0")}`;
+  // loudness: energi K-weighted rata-rata ~20 detik terakhir
+  if (meter && t > 2) {
+    let e = 0;
+    for (const a of meter.an) { a.getFloatTimeDomainData(meter.buf); let s = 0; for (const v of meter.buf) s += v * v; e += s / meter.buf.length; }
+    agc.hist.push(e); if (agc.hist.length > 80) agc.hist.shift();
+    const mean = agc.hist.reduce((a, b) => a + b, 0) / agc.hist.length;
+    const lufs = -0.691 + 10 * Math.log10(mean + 1e-12);     // sebelum gain master
+    const target = current().r.master.target_lufs;
+    if (agc.hist.length >= 24) {   // setelah ~6 s: arahkan gain master pelan-pelan ke target
+      const want = Math.max(-24, Math.min(24, target - lufs));
+      agc.gainDb += Math.max(-0.15, Math.min(0.15, want - agc.gainDb));
+      engine.masterGain.gain.setTargetAtTime(10 ** (agc.gainDb / 20), ctx.currentTime, 0.5);
+    }
+    $("#lufs").textContent = `≈ ${(lufs + agc.gainDb).toFixed(1)} LUFS`;
+  }
+}
+
+function drawLoop() {
+  const cv = $("#viz"), g = cv.getContext("2d");
+  const draw = () => {
+    const w = (cv.width = cv.clientWidth * devicePixelRatio), h = (cv.height = cv.clientHeight * devicePixelRatio);
+    g.clearRect(0, 0, w, h);
+    if (engine && meter) {
+      const a = meter.viz, d = new Float32Array(a.frequencyBinCount);
+      a.getFloatFrequencyData(d);
+      const grad = g.createLinearGradient(0, h, 0, 0);
+      grad.addColorStop(0, "rgba(120,140,255,0.05)"); grad.addColorStop(1, "rgba(190,160,255,0.55)");
+      g.fillStyle = grad; g.beginPath(); g.moveTo(0, h);
+      for (let x = 0; x < w; x += 2) {
+        const f = 30 * (16000 / 30) ** (x / w), i = Math.min(d.length - 1, Math.round((f / (SR / 2)) * d.length));
+        const y = h - ((Math.max(-110, d[i]) + 110) / 85) * h;
+        g.lineTo(x, y);
+      }
+      g.lineTo(w, h); g.closePath(); g.fill();
+    }
+    requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+// ---------- ekspor ----------
+function downloadToml() {
+  // nilai yang PERSIS sedang terdengar: rentang [min,max] dan daftar pilihan sudah dipilih untuk seed ini,
+  // supaya versi Python memakai warna suara yang sama (Python punya generator acak sendiri)
+  const out = resolve(state.raw, state.seed);
+  if (!out.name.includes("(studio)")) out.name = `${out.name} (studio)`;
+  const text = `# Dibuat di Spacenight Studio. Render: python generate.py ${fileName()}.toml --duration 60\n` + toToml(out);
+  download(new Blob([text], { type: "text/plain" }), `${fileName()}.toml`);
+}
+
+async function renderWav() {
+  const minutes = Math.max(0.25, Math.min(15, parseFloat($("#minutes").value) || 2));
+  const total = minutes * 60, btn = $("#render");
+  btn.disabled = true;
+  const { r, P } = current();
+  const oc = new OfflineAudioContext(2, Math.round(total * SR), SR);
+  const eng = new Engine(oc, P, state.seed, { total, offline: true, start: 0 });
+  eng.scheduleUntil(total);
+  const step = Math.max(5, Math.floor(total / 40));
+  for (let t = step; t < total; t += step) oc.suspend(t).then(() => { $("#progress").value = t / total; oc.resume(); });
+  $("#status").textContent = "Me-render…";
+  const t0 = performance.now();
+  const buf = await oc.startRendering();
+  $("#status").textContent = "Mastering…";
+  await new Promise((res) => setTimeout(res, 20));
+  const ch = [buf.getChannelData(0), buf.getChannelData(1)];
+  const lufs0 = integratedLoudness(ch, SR);
+  const gain = 10 ** ((r.master.target_lufs - lufs0) / 20);
+  for (const x of ch) for (let i = 0; i < x.length; i++) x[i] *= gain;
+  limitInPlace(ch, SR, -1.0);
+  const lufs = integratedLoudness(ch, SR);
+  download(wavBlob(ch, SR), `${fileName()}_${Math.round(total)}s.wav`);
+  $("#progress").value = 1;
+  $("#status").textContent = `Selesai dalam ${((performance.now() - t0) / 1000).toFixed(0)} s · ${lufs.toFixed(1)} LUFS`;
+  btn.disabled = false;
+  window.__lastRender = { lufs, lufs0, seconds: total };
+}
+
+function download(blob, name) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+init();

@@ -46,3 +46,11 @@ def test_preview_is_start_of_long_version():
 def test_bad_mode_rejected():
     with pytest.raises(ValueError):
         settings.apply(settings.resolve(settings.load(overrides=["key.mode=locrian"]), 1))
+
+
+def test_web_presets_json_up_to_date():
+    """web/presets.json harus sama dengan preset Python. Kalau gagal: python export_web.py"""
+    import json
+    import export_web
+    built = json.loads(json.dumps(export_web.build()))
+    assert json.loads(export_web.OUT.read_text()) == built

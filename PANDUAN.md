@@ -4,6 +4,21 @@ Program ini membuat musik ambient bertema luar angkasa berdurasi panjang (misaln
 
 ---
 
+## 0. Spacenight Studio (versi web)
+
+Buka **https://mastoppink.github.io/luar-angkasa/** di browser (komputer atau HP). Tidak perlu memasang apa pun.
+
+- Pilih preset, tekan **▶ Putar**, lalu geser slider. Perubahan langsung terdengar.
+- Tombol 🎲 mencoba seed lain dari preset yang sama.
+- **Unduh .toml** menyimpan pengaturan yang sedang terdengar. Render versi 60 menit dengan Python
+  (bagian 2), atau kirim file itu ke Claude untuk di-render.
+- **Render WAV** membuat contoh beberapa menit langsung di browser, sudah dinormalisasi volumenya.
+
+Versi web memakai warna suara yang sama dengan versi Python, tetapi urutan chord dan melodinya berbeda
+untuk seed yang sama. Untuk video YouTube 60 menit, tetap pakai versi Python.
+
+---
+
 ## 1. Persiapan (sekali saja)
 
 Yang dibutuhkan:
