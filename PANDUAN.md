@@ -167,6 +167,8 @@ Pengaturan yang paling berguna:
 | `mix.texture` | mis. `0.03` | Volume suara "angin" |
 | `space.reverb_mix` | 0 – 1 | Kering → sangat luas |
 | `space.shimmer` | 0 – 1 | Kilau halus di gema |
+| `space.reverb_type` | `hall`, `classic` | Jenis gema: `hall` = ekor bergerak halus (bawaan), `classic` = gema lama yang statis |
+| `space.size` | 0.6 – 1.6 | Ukuran ruang gema: kecil = rapat, besar = lapang |
 | `key.tonic` | `C`, `D`, `F#`, … | Nada dasar |
 | `key.mode` | `ionian`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `aeolian` | Suasana: lydian = luas, dorian = sendu, aeolian = gelap, ionian = manis |
 | `master.target_lufs` | `-14` YouTube, `-16` tidur | Volume akhir |

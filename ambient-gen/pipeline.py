@@ -52,10 +52,17 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
 
     p = config.FX
     chorus, delay = fx.stream_chorus(), fx.stream_delay(p)
-    ir = fx.make_ir(p["reverb_decay"], p["reverb_predelay"], np.random.default_rng([seed, 5]),
-                    p["reverb_hp"], early=p["early"], width=p["width"])
-    reverb = fx.StreamReverb(ir)
-    wet_chorus = fx.stream_wet_chorus() if p["motion"] > 0 else None
+    if p.get("reverb_type", "hall") == "hall":
+        # reverb algoritmik FDN: ekor bergerak dari dalam (modulasi per jalur), tanpa chorus tambahan
+        reverb = fx.FDNReverb(p["reverb_decay"], np.random.default_rng([seed, 5]), p["reverb_predelay"],
+                              p["reverb_hp"], early=p["early"], width=p["width"], size=p.get("size", 1.0),
+                              mod_depth=0.15 + 0.9 * p["motion"])
+        wet_chorus = None
+    else:
+        ir = fx.make_ir(p["reverb_decay"], p["reverb_predelay"], np.random.default_rng([seed, 5]),
+                        p["reverb_hp"], early=p["early"], width=p["width"])
+        reverb = fx.StreamReverb(ir)
+        wet_chorus = fx.stream_wet_chorus() if p["motion"] > 0 else None
     shimmer = None
     if p["shimmer"] > 0:
         # jalur shimmer: kirim -> naik 1 oktaf -> buang bass -> reverb yang lebih panjang & tanpa ER

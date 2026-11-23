@@ -57,6 +57,8 @@ DEFAULTS = {
         "width": 1.0,                # 0..1 lebar stereo reverb
         "motion": 0.5,               # 0..1 modulasi pelan pada ekor reverb
         "shimmer": 0.0,              # 0..1 kilau oktaf atas di reverb (0 = mati)
+        "reverb_type": "hall",       # hall = algoritmik, ekor bergerak / classic = konvolusi (lama)
+        "size": 1.0,                 # 0.6..1.6 ukuran ruang (hall): kecil = rapat, besar = lapang
     },
     "form": {
         "type": ["arc", "rise", "valley", "journey"],   # bentuk lagu; daftar = dipilih per seed
@@ -199,7 +201,8 @@ def apply(r):
     sp = r["space"]
     config.FX = dict(config.FX, reverb_decay=sp["reverb_decay"], delay_feedback=sp["delay_feedback"],
                      target_lufs=r["master"]["target_lufs"], early=sp["early"], width=sp["width"],
-                     motion=sp["motion"], shimmer=sp["shimmer"])
+                     motion=sp["motion"], shimmer=sp["shimmer"],
+                     reverb_type=str(sp["reverb_type"]), size=float(sp["size"]))
     config.MIX = dict(dry=1 - 0.5 * sp["reverb_mix"], wet=2 * sp["reverb_mix"])
 
 

@@ -19,7 +19,7 @@ python -m pytest -q tests
 | `form.py` | Kurva intensitas sepanjang lagu (intro, gelombang lambat, outro) |
 | `synth.py` | Pad (wavetable band-limited, pitch drift, filter bergerak), melodi (soft/glass/kalimba/piano), tekstur angin |
 | `render.py` | Render satu segmen waktu untuk semua lapisan |
-| `fx.py` | Efek streaming: reverb konvolusi (IR sintetis), chorus, delay, EQ, shimmer, limiter |
+| `fx.py` | Efek streaming: reverb FDN "hall" (8 jalur, modulasi, numba) atau konvolusi "classic", chorus, delay, EQ, shimmer, limiter |
 | `pipeline.py` | Render paralel per segmen 30 s → efek → loudness → limiter → WAV/MP3/FLAC |
 | `loudness.py` | Meter loudness BS.1770 streaming (integrated, short-term, LRA) |
 | `qc.py` | Laporan kualitas: LUFS, LRA, true peak, mono, keseimbangan spektrum 1/3 oktaf vs pink |
@@ -91,3 +91,14 @@ ekspor `.toml` menulis nilai yang sudah dipilih untuk seed itu, jadi warna suara
 Performa web (Chromium, 7 kali geser slider saat memutar): waktu halaman macet total 6,3 s → 0 ms
 (CPU 4x lebih lambat: 27,5 s → 57 ms). Bunyi dihitung oleh mesin audio bawaan browser; WebAssembly
 tidak diperlukan karena hambatannya ada pada pembangunan ulang mesin, bukan pada perhitungan suara.
+
+## Reverb "hall" (FDN)
+
+`fx.FDNReverb`: difusi allpass 4 tahap → 8 delay line (29-97 ms × size) dengan matriks Householder,
+posisi baca dimodulasi LFO pelan per jalur (kedalaman 0,15-1,05 ms dari `space.motion`), peredam one-pole
+per jalur (treble RT60 ≈ 0,4-0,5 × RT60), tap stereo dari baris Hadamard, pantulan awal FIR 90 ms.
+Dinormalkan ke energi impuls 1 (setara IR konvolusi). Inti per sampel dikompilasi `numba`.
+
+Diukur terhadap reverb konvolusi lama (chord 3 detik lalu hening): gerak spektrum ekor 13-21× lebih besar,
+kerapatan gema penuh dalam 105 ms, keseimbangan pita frekuensi mix dalam ±2 dB, waktu render sama.
+Versi web masih memakai konvolusi.

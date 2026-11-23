@@ -46,7 +46,9 @@
    "early": 0.5,
    "width": 1.0,
    "motion": 0.5,
-   "shimmer": 0.0
+   "shimmer": 0.0,
+   "reverb_type": "hall",
+   "size": 1.0
   },
   "form": {
    "type": [
@@ -130,7 +132,9 @@
     "early": 0.5,
     "width": 1.0,
     "motion": 0.5,
-    "shimmer": 0.25
+    "shimmer": 0.25,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": [
@@ -214,7 +218,9 @@
     "early": 0.5,
     "width": 1.0,
     "motion": 0.6,
-    "shimmer": 0.4
+    "shimmer": 0.4,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": [
@@ -297,7 +303,9 @@
     "early": 0.5,
     "width": 1.0,
     "motion": 0.5,
-    "shimmer": 0.0
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": [
@@ -378,7 +386,9 @@
     "early": 0.5,
     "width": 1.0,
     "motion": 0.5,
-    "shimmer": 0.0
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": [
@@ -460,7 +470,9 @@
     "early": 0.3,
     "width": 1.0,
     "motion": 0.6,
-    "shimmer": 0.0
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": [
@@ -541,7 +553,9 @@
     "early": 0.5,
     "width": 1.0,
     "motion": 0.5,
-    "shimmer": 0.0
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": [
@@ -623,7 +637,9 @@
     "early": 0.5,
     "width": 1.0,
     "motion": 0.5,
-    "shimmer": 0.0
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": "calm",
@@ -699,7 +715,9 @@
     "early": 0.5,
     "width": 1.0,
     "motion": 0.5,
-    "shimmer": 0.0
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": [
@@ -775,7 +793,9 @@
     "early": 0.5,
     "width": 1.0,
     "motion": 0.5,
-    "shimmer": 0.0
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
    },
    "form": {
     "type": [
