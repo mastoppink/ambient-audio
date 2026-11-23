@@ -252,7 +252,7 @@ export class Engine {
     };
   }
 
-  _padVoice(dest, p, midi, songT, dur, rng, { attack, release, subLevel = 0, shapeBright = 0, fadeShape = "sin2", kind = "pad" }) {
+  _padVoice(dest, p, midi, songT, dur, rng, { attack, release, subLevel = 0, shapeBright = 0, fadeIn = "sin2", fadeOut = "sin2", kind = "pad" }) {
     const ctx = this.ctx, t = this.t0 + songT, f0 = midiToHz(midi), k = p.nOsc;
     if (!this.offline && t + dur <= ctx.currentTime + 0.05) return;   // sudah selesai (mulai "panas")
     const NH = 64, real = new Float32Array(NH), imag = new Float32Array(NH);
@@ -292,8 +292,10 @@ export class Engine {
     }
     const env = ctx.createGain(); env.gain.value = 0;
     const a = Math.min(attack, dur / 2), r = Math.min(release, dur - a);
-    const fade = fadeShape === "sin" ? (u) => Math.sin((u * Math.PI) / 2) : (u) => Math.sin((u * Math.PI) / 2) ** 2;
-    this._curve(env.gain, t, dur, (x) => (x < a ? fade(x / a) : x > dur - r ? fade(Math.max(0, (dur - x) / r)) : 1));
+    // "sin2": muncul/hilang pelan (awal & akhir lagu); "sin": equal-power untuk sambungan antar potongan drone
+    const shapeOf = (s) => (s === "sin" ? (u) => Math.sin((u * Math.PI) / 2) : (u) => Math.sin((u * Math.PI) / 2) ** 2);
+    const fi = shapeOf(fadeIn), fo = shapeOf(fadeOut);
+    this._curve(env.gain, t, dur, (x) => (x < a ? fi(x / a) : x > dur - r ? fo(Math.max(0, (dur - x) / r)) : 1));
     mg.connect(env).connect(dest);
     // waktu bisa negatif saat lagu dimulai "panas" di awal pemutaran: mulai seketika (0), jangan negatif
     for (const o of oscs) { o.start(Math.max(0, t)); o.stop(Math.max(0.01, t + dur + 0.05)); this._track(o); }
@@ -374,7 +376,9 @@ export class Engine {
       const b = this.cloudBucket++;
       if (C.level <= 0) continue;
       const r = rngFor(this.seed, "cloud", b);
-      let dens = C.density * (0.35 + 0.9 * this.shape(b + 0.5));
+      // awan muncul perlahan 20 detik pertama, bersama pad (sama dengan synth.CLOUD_INTRO)
+      const intro = (t) => Math.sin((Math.min(1, Math.max(0, t / 20)) * Math.PI) / 2) ** 2;
+      let dens = C.density * (0.35 + 0.9 * this.shape(b + 0.5)) * intro(b + 0.5);
       if (this.sections) dens *= 0.6 + 0.4 * Math.min(1.5, Math.max(0, this.sections.at(b).melody));
       let k = 0, p = Math.exp(-dens), prod = r();       // Poisson (Knuth)
       while (prod > p) { k++; prod *= r(); }
@@ -384,7 +388,7 @@ export class Engine {
         len = Math.min(maxLen, Math.max(0.08, len));
         const notes = this.comp.chordAt(t).notes, oct = C.octaves[Math.floor(r() * C.octaves.length)];
         const midi = notes[Math.floor(r() * notes.length)] + 12 * oct;
-        const f = midiToHz(midi) * 2 ** (r.uniform(-8, 8) / 1200), amp = r.uniform(0.35, 1), pan = r.uniform(0.1, 0.9);
+        const f = midiToHz(midi) * 2 ** (r.uniform(-8, 8) / 1200), amp = r.uniform(0.35, 1) * intro(t), pan = r.uniform(0.1, 0.9);
         const at = this.t0 + t;
         if (f > 9000 || at < late) continue;
         const o = ctx.createOscillator(); o.setPeriodicWave(this.cloudWave); o.frequency.value = f;
@@ -432,7 +436,8 @@ export class Engine {
       if (dur <= 0) break;
       const last = st + dur >= end;
       P.droneNotes.forEach((m, j) => this._padVoice(this.layerIn.drone, P.drone, m, st, dur, rngFor(this.seed, "drone", i, j), {
-        attack: i === 0 ? P.drone.attack : DRONE_XF, release: last ? 20 : DRONE_XF, fadeShape: i === 0 && !last ? "sin2" : "sin",
+        attack: i === 0 ? P.drone.attack : DRONE_XF, release: last ? 20 : DRONE_XF,
+        fadeIn: i === 0 ? "sin2" : "sin", fadeOut: last ? "sin2" : "sin",
         subLevel: j === 0 ? P.drone.sub : 0, kind: "drone",
       }));
     }

@@ -376,6 +376,12 @@ def melody_voice(timbre, midi, duration, rng, decay, pan, vel=1.0, offset=0, n=N
 
 
 # ---------- lapisan "awan": butir-butir suara pendek dari nada chord (granular) ----------
+CLOUD_INTRO = 20.0   # detik: awan naik perlahan (jumlah & volume butir) seperti pad/drone di awal lagu
+
+
+def _cloud_intro(t):
+    return float(np.sin(min(1.0, max(0.0, t / CLOUD_INTRO)) * np.pi / 2) ** 2)
+
 def cloud_segment(t_start, n, seed, chords, p, shape=None, sections=None):
     """Butir suara 80-450 ms di sekitar nada chord yang sedang berbunyi -> lapisan berkilau yang terus berubah.
 
@@ -396,6 +402,7 @@ def cloud_segment(t_start, n, seed, chords, p, shape=None, sections=None):
     for b in range(max(0, b0), b1):
         rng = np.random.default_rng([seed, 20, b])
         dens = p["density"] * (0.35 + 0.9 * float(shape(b + 0.5)) if shape is not None else 1.0)
+        dens *= _cloud_intro(b + 0.5)   # awan muncul bersama pad, tidak mendahuluinya
         if sections is not None:
             sec = sections.at(b)
             dens *= 0.6 + 0.4 * min(1.5, max(0.0, sec["melody"]))   # babak sepi -> awan lebih tipis
@@ -407,7 +414,7 @@ def cloud_segment(t_start, n, seed, chords, p, shape=None, sections=None):
             notes = chords[max(ci, 0)][3]
             midi = notes[int(rng.integers(len(notes)))] + 12 * octs[int(rng.integers(len(octs)))]
             f = midi_to_hz(midi) * 2 ** (rng.uniform(-8, 8) / 1200)
-            amp = rng.uniform(0.35, 1.0)
+            amp = rng.uniform(0.35, 1.0) * _cloud_intro(t)
             pan = rng.uniform(0.1, 0.9)
             ph = rng.uniform(0, 2 * np.pi, 3)
             # bagian butir yang jatuh di segmen ini
