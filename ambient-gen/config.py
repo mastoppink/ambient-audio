@@ -72,6 +72,8 @@ MIX = dict(dry=0.75, wet=1.0)
 
 # --- Milestone 4 ---
 SHAPE = None              # fungsi kurva intensitas t -> 0..1 (form.py), None = datar
+SECTIONS = None           # form.Sections (babak), None = tanpa babak
+VARIATION = 0.0           # 0 = tanpa sumber variasi tambahan
 SEGMENT_SECONDS = 30.0    # unit render paralel
 
 # --- Optimasi audio: EQ per lapisan (jenis, Hz, gain dB, Q) ---

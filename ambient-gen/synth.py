@@ -200,7 +200,7 @@ def pink_filter(white):
     return lfilter(b, a, white, axis=0)
 
 
-def texture_segment(t_start, n, seed, seg, p, shape=None):
+def texture_segment(t_start, n, seed, seg, p, shape=None, mult=None):
     """Tekstur angin untuk satu segmen: pink noise band-pass, dipandu tiga LFO prima.
     Noise tiap segmen memakai sumber acak sendiri; filter dipanaskan dengan pre-roll."""
     rng_lfo = np.random.default_rng([seed, 4])           # fase LFO: sama untuk semua segmen
@@ -221,6 +221,8 @@ def texture_segment(t_start, n, seed, seg, p, shape=None):
         if shape is not None:   # intensitas tinggi -> angin lebih terdengar
             k = p.get("shape_amount", 0.0)
             amp = amp * ((1 - k) + k * (0.25 + 1.5 * shape(t)))
+        if mult is not None:     # babak: angin lebih kuat/lemah
+            amp = amp * mult(t)
         chans.append((y * amp)[pre:])
     return np.stack(chans, axis=1) * 0.35   # ~ setara level normalisasi lama
 

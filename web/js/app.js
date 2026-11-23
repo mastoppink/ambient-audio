@@ -1,5 +1,5 @@
 // Antarmuka Spacenight Studio.
-import { resolve, technical, deepMerge, MODES, NOTE_NAMES } from "./music.js";
+import { resolve, technical, deepMerge, MODES, NOTE_NAMES, FORM_TYPES } from "./music.js";
 import { Engine } from "./engine.js";
 import { integratedLoudness, limitInPlace, wavBlob } from "./dsp.js";
 import { toToml } from "./toml.js";
@@ -8,6 +8,11 @@ const SR = 48000;
 const $ = (s) => document.querySelector(s);
 let DATA, ctx = null, engine = null, timer = null, restartTimer = null;
 const state = { presetKey: null, raw: null, seed: 1, touched: new Set() };
+
+const MODE_NAMES = { lydian: "Luas & melayang", ionian: "Cerah & manis", mixolydian: "Ringan & santai",
+  dorian: "Sendu & hangat", aeolian: "Gelap & tenang", phrygian: "Misterius" };
+const FORM_NAMES = { arc: "Naik-turun lembut", rise: "Tumbuh perlahan", valley: "Menenang di tengah",
+  calm: "Datar & tenang", journey: "Berpindah suasana" };
 
 // kontrol: [path, label, min, max, step, keterangan]
 const CONTROLS = {
@@ -28,7 +33,10 @@ const CONTROLS = {
     ["space.reverb_mix", "Gema", 0, 1, 0.01, "kering → luas"],
     ["space.reverb_decay", "Panjang gema", 4, 18, 0.5, "detik"],
     ["texture.brightness", "Angin: kecerahan", 0, 1, 0.01, ""],
-    ["form.amount", "Gelombang intensitas", 0, 1, 0.01, "datar → naik-turun"],
+  ],
+  Variasi: [
+    ["variation.amount", "Perubahan antar babak", 0, 1, 0.01, "sama terus → banyak berubah"],
+    ["form.amount", "Naik-turun intensitas", 0, 1, 0.01, "datar → terasa"],
   ],
   Mix: [
     ["mix.drone", "Drone", 0, 1.2, 0.01, ""],
@@ -47,13 +55,26 @@ async function init() {
   const sel = $("#preset");
   for (const [k, p] of Object.entries(DATA.presets)) sel.add(new Option(p.name, k));
   for (const n of NOTE_NAMES) $("#tonic").add(new Option(n, n));
-  for (const m of Object.keys(MODES)) $("#mode").add(new Option(m, m));
+  for (const m of Object.keys(MODES)) $("#mode").add(new Option(MODE_NAMES[m] || m, m));
+  $("#formtype").add(new Option("Pilihan preset", "")); 
+  for (const f of FORM_TYPES) $("#formtype").add(new Option(FORM_NAMES[f], f));
   buildControls();
   sel.onchange = () => loadPreset(sel.value);
   $("#seed").onchange = () => { state.seed = parseInt($("#seed").value || "1", 10); refresh(); };
   $("#dice").onclick = () => { state.seed = Math.floor(Math.random() * 99999) + 1; $("#seed").value = state.seed; refresh(); };
   $("#tonic").onchange = () => { set(state.raw, "key.tonic", $("#tonic").value); refresh(); };
   $("#mode").onchange = () => { set(state.raw, "key.mode", $("#mode").value); refresh(); };
+  $("#formtype").onchange = () => {
+    set(state.raw, "form.type", $("#formtype").value || structuredClone(DATA.presets[state.presetKey].form?.type ?? DATA.defaults.form.type));
+    refresh();
+  };
+  $("#newver").onclick = () => {   // nomor versi + nada dasar baru: menurut ukuran kemiripan, ini yang paling membedakan
+    const cur = current().P.tonicName;
+    let n; do { n = NOTE_NAMES[Math.floor(Math.random() * 12)]; } while (n === cur);
+    set(state.raw, "key.tonic", n);
+    state.seed = Math.floor(Math.random() * 99999) + 1; $("#seed").value = state.seed;
+    refresh();
+  };
   $("#timbre").onchange = () => { set(state.raw, "melody.timbre", $("#timbre").value); refresh(); };
   $("#consonance").onchange = () => { set(state.raw, "melody.consonance", $("#consonance").checked ? 1.0 : 0.0); refresh(); };
   $("#play").onclick = togglePlay;
@@ -105,13 +126,15 @@ function current() {
 function refresh() {
   const { r, P } = current();
   $("#tonic").value = P.tonicName; $("#mode").value = P.mode;
+  $("#formtype").value = Array.isArray(state.raw.form?.type) ? "" : r.form.type;
+  $("#formtype").options[0].text = Array.isArray(state.raw.form?.type) ? `Pilihan preset (${FORM_NAMES[r.form.type]})` : "Pilihan preset";
   $("#timbre").value = r.melody.timbre; $("#consonance").checked = r.melody.consonance > 0;
   for (const input of document.querySelectorAll("#controls input")) {
     const path = input.dataset.path, raw = get(state.raw, path), v = get(r, path);
     input.value = v; input.nextElementSibling.textContent = fmt(+v, parseFloat(input.step));
     input.parentElement.classList.toggle("random", Array.isArray(raw) && !state.touched.has(path));
   }
-  $("#keyinfo").textContent = `${P.tonicName} ${P.mode} · target ${r.master.target_lufs} LUFS`;
+  $("#keyinfo").textContent = `Nada ${P.tonicName}, ${MODE_NAMES[P.mode].toLowerCase()} · bentuk: ${FORM_NAMES[r.form.type].toLowerCase()} · volume akhir ${r.master.target_lufs} LUFS (${r.master.target_lufs >= -14.5 ? "standar YouTube" : "lebih pelan, untuk tidur/tenang"})`;
   $("#cmd").textContent = `python generate.py ${fileName()}.toml --duration 60`;
   if (engine) { clearTimeout(restartTimer); restartTimer = setTimeout(() => startEngine(true), 450); }
 }
@@ -164,8 +187,9 @@ function tick() {
   if (!engine) return;
   const t = engine.now();
   engine.scheduleUntil(t + 20);
-  const { chord, intensity } = engine.info(t);
+  const { chord, intensity, section } = engine.info(t);
   $("#chord").textContent = chord || "–";
+  $("#section").textContent = section ? describeSection(section) : "–";
   $("#intensity").style.width = `${Math.round(intensity * 100)}%`;
   const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
   $("#time").textContent = `${mm}:${String(ss).padStart(2, "0")}`;
@@ -184,6 +208,18 @@ function tick() {
     }
     $("#lufs").textContent = `≈ ${(lufs + agc.gainDb).toFixed(1)} LUFS`;
   }
+}
+
+function describeSection(s) {
+  const bits = [];
+  if (s.melody === 0) bits.push("melodi istirahat");
+  else if (s.melody > 1.15) bits.push("melodi lebih ramai");
+  else if (s.melody < 0.85) bits.push("melodi lebih sepi");
+  if (s.register > 0) bits.push("melodi lebih tinggi");
+  if (s.register < 0) bits.push("melodi lebih rendah");
+  if (s.texture > 1.25) bits.push("angin lebih kuat");
+  if (s.texture < 0.75) bits.push("angin lebih lemah");
+  return `${s.no}${bits.length ? " · " + bits.join(", ") : ""}`;
 }
 
 function drawLoop() {

@@ -43,3 +43,9 @@ target_lufs = -16.0   # YouTube; sedikit lebih pelan karena untuk tidur
 
 [qc]
 profile = "sleep"     # target spektrum lebih gelap
+
+[form]
+type = ["calm", "arc", "valley"]   # bentuk lagu yang tenang saja
+
+[variation]
+amount = 0.3   # perubahan antar babak tipis, supaya tetap menenangkan

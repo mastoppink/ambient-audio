@@ -59,6 +59,7 @@ DEFAULTS = {
         "shimmer": 0.0,              # 0..1 kilau oktaf atas di reverb (0 = mati)
     },
     "form": {
+        "type": ["arc", "rise", "valley", "journey"],   # bentuk lagu; daftar = dipilih per seed
         "amount": 0.6,               # 0 datar .. 1 naik-turun intensitas sangat terasa
         "period_min": [12, 25],      # panjang satu "gelombang" intensitas (menit)
         "intro_min": 3,
@@ -66,6 +67,7 @@ DEFAULTS = {
         "bright": 0.8,               # seberapa jauh intensitas membuka filter pad (oktaf)
     },
     "master": {"target_lufs": -16.0},
+    "variation": {"amount": 0.5},    # 0 = tanpa babak & chord tambahan .. 1 = banyak perubahan
     "qc": {"profile": "default"},    # default / calm / sleep
 }
 RANGE_KEYS = {("pad", "chord_seconds"), ("form", "period_min")}
@@ -188,6 +190,7 @@ def apply(r):
         raise ValueError(f"melody.timbre {m['timbre']!r} tidak dikenal; pilih soft/glass/kalimba/piano")
 
     fm = r["form"]
+    config.VARIATION = float(r["variation"]["amount"])
     config.PAD["shape_bright"] = fm["amount"] * fm["bright"]
     tb = r["texture"]["brightness"]
     config.TEXTURE = dict(config.TEXTURE, level=mix["texture"], shape_amount=fm["amount"],

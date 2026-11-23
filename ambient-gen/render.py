@@ -59,8 +59,9 @@ def render_segment(events, seg_start, seg_n, seed, seg_index=0):
             out[e.layer][lo - seg_start:hi - seg_start] += x
     tp = config.TEXTURE
     if tp["level"] > 0:
-        out["texture"] = texture_segment(seg_start / SR, seg_n, seed, seg_index,
-                                         tp, config.SHAPE) * tp["level"]
+        sec = config.SECTIONS
+        out["texture"] = texture_segment(seg_start / SR, seg_n, seed, seg_index, tp, config.SHAPE,
+                                         sec.texture_mult if sec is not None else None) * tp["level"]
     if seg_start < 20 * SR:   # fade-in tekstur 20 detik pertama
         t = (seg_start + np.arange(seg_n)) / SR
         out["texture"] *= np.clip(t / 20, 0, 1)[:, None]

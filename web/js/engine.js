@@ -1,7 +1,7 @@
 // Mesin audio Web Audio. Bekerja untuk AudioContext (pemutaran langsung, tanpa akhir) maupun
 // OfflineAudioContext (ekspor WAV). Struktur sama dengan ambient-gen/pipeline.py:
 // lapisan (drone, pad, melodi, tekstur) -> EQ -> efek lapisan -> kering + kirim ke reverb -> master.
-import { rngFor, midiToHz, Composer, makeShape } from "./music.js";
+import { rngFor, midiToHz, Composer, makeShape, Sections } from "./music.js";
 import { makeIR, pinkBuffer } from "./dsp.js";
 
 const CURVE_HZ = 8;                 // resolusi kurva otomasi (titik per detik)
@@ -26,7 +26,8 @@ export class Engine {
     this.ctx = ctx; this.P = P; this.seed = seed; this.total = total; this.offline = offline;
     this.t0 = start ?? ctx.currentTime + 0.15;
     this.shape = makeShape(total, seed, P.form);
-    this.comp = new Composer(P, seed, this.shape);
+    this.sections = P.variation > 0 ? new Sections(seed, P.variation, P.melody.level > 0, total ?? 6 * 3600) : null;
+    this.comp = new Composer(P, seed, this.shape, this.sections);
     this.scheduledChord = 0; this.droneChunk = 0; this.texChunk = 0; this.nodes = new Set();
     this.listeners = [];
     this._build();
@@ -283,6 +284,7 @@ export class Engine {
             const tt = st + x;
             let amp = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin((2 * Math.PI * tt) / (T_.periods[ch % 3] * 1.7) + ph[ph.length - 1]));
             const k = T_.shapeAmount; amp *= (1 - k) + k * (0.25 + 1.5 * this.shape(tt));
+            if (this.sections) amp *= this.sections.textureMult(tt);
             const fadeIn = Math.min(1, tt / 20), fadeOut = this.total ? Math.min(1, Math.max(0, (this.total - tt) / 30)) : 1;
             return amp * fadeIn * fadeOut;
           });
@@ -305,6 +307,8 @@ export class Engine {
 
   info(songT) {
     const c = this.comp.chordAt(Math.max(0, songT));
-    return { chord: c ? c.label : "", intensity: this.shape(Math.max(0, songT)) };
+    const t = Math.max(0, songT), sec = this.sections?.at(t);
+    return { chord: c ? c.label : "", intensity: this.shape(t), form: this.shape.kind,
+      section: sec ? { no: this.sections.index(t) + 1, ...sec } : null };
   }
 }

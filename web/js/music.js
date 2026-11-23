@@ -41,7 +41,11 @@ const NOTES = { C: 0, "C#": 1, DB: 1, D: 2, "D#": 3, EB: 3, E: 4, F: 5, "F#": 6,
 export const CHORDS = {
   I: [[0, 2, 4, 1], 3.0], II: [[1, 3, 5, 0], 2.5], iii: [[2, 4, 6, 1], 1.5],
   V: [[4, 5, 1], 1.5], vi: [[5, 0, 2, 6], 1.5], vii: [[6, 1, 3, 5], 0.7],
+  // chord tambahan: hanya kalau variation > 0 dan tidak ada nada berjarak 1 semiton di dalamnya
+  IV: [[3, 5, 0, 4], 1.0], Isus: [[0, 3, 4, 1], 0.8], I6: [[0, 2, 4, 5], 0.8],
 };
+export const EXTRA_CHORDS = ["IV", "Isus", "I6"];
+export const FORM_TYPES = ["arc", "rise", "valley", "calm", "journey"];
 export const midiToHz = (m) => 440 * 2 ** ((m - 69) / 12);
 const mod = (a, n) => ((a % n) + n) % n;
 const clip = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -117,25 +121,68 @@ export function technical(r, data) {
       delayFeedback: sp.delay_feedback, delaySeconds: data.delay_seconds, delayMix: data.delay_mix,
       early: sp.early, width: sp.width, motion: sp.motion, shimmer: sp.shimmer,
       send: data.send, reverbHp: data.reverb_hp, predelay: data.reverb_predelay },
-    form: fm, lufs: r.master.target_lufs, eq: data.eq,
+    form: fm, lufs: r.master.target_lufs, eq: data.eq, variation: r.variation?.amount ?? 0,
   };
 }
 
 // ---------- kurva bentuk (intensitas 0..1) ----------
+const smooth = (x) => { x = clip(x, 0, 1); return x * x * (3 - 2 * x); };
+
 export function makeShape(total, seed, f) {
   const r = rngFor(seed, "form");
   const pm = f.period_min || [12, 25];
   const p1 = r.uniform(pm[0], pm[1]) * 60, p2 = r.uniform(pm[0], pm[1]) * 60;
   const ph1 = r.uniform(0, 2 * Math.PI), ph2 = r.uniform(0, 2 * Math.PI);
   const intro = (f.intro_min ?? 3) * 60, outro = (f.outro_min ?? 5) * 60, low = 0.2, amount = f.amount ?? 0.6;
-  return (t) => {
+  const kind = FORM_TYPES.includes(f.type) ? f.type : "arc";
+  const span = total || 3600;                      // tanpa akhir: pola bentuk diulang tiap jam
+  const jr = rngFor(seed, "journey"), plateau = jr.uniform(8, 14) * 60;
+  const levels = Array.from({ length: Math.ceil(span / plateau) + 3 }, () => jr.uniform(0.25, 0.85));
+  const base = (t) => {
     const wave = 0.5 + 0.32 * Math.sin((2 * Math.PI * t) / p1 + ph1) + 0.18 * Math.sin((2 * Math.PI * t) / p2 + ph2);
-    const c = 0.5 + amount * (wave - 0.5);
+    const small = 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / p1 + ph1);
+    const u = (t % span) / span;
+    if (kind === "arc") return wave;
+    if (kind === "rise") return 0.2 + 0.65 * smooth(u / 0.68) - 0.25 * smooth((u - 0.75) / 0.25) + 0.12 * (small - 0.5);
+    if (kind === "valley") return 0.72 - 0.5 * Math.sin(Math.PI * u) ** 2 + 0.12 * (small - 0.5);
+    if (kind === "calm") return 0.32 + 0.08 * (small - 0.5);
+    const k = (t % span) / plateau, i = Math.floor(k), fr = smooth(((k - i) * plateau) / 120);
+    const L = (j) => levels[clip(j, 0, levels.length - 1)];
+    return L(i) * (1 - fr) + L(i + 1) * fr;
+  };
+  const shape = (t) => {
+    const c = 0.5 + amount * (base(t) - 0.5);
     const wi = intro > 0 ? clip(t / intro, 0, 1) : 1;
     const wo = total && outro > 0 ? clip((total - t) / outro, 0, 1) : 1;   // total=null: tanpa akhir
     const w = Math.min(Math.sin((wi * Math.PI) / 2) ** 2, Math.sin((wo * Math.PI) / 2) ** 2);
-    return low + (c - low) * w;
+    return clip(low + (c - low) * w, 0, 1);
   };
+  shape.kind = kind;
+  return shape;
+}
+
+/** Babak: lagu dibagi bagian 8-18 menit dengan karakter berbeda (lihat ambient-gen/form.py). */
+export class Sections {
+  constructor(seed, amount, allowRest = true, horizon = 6 * 3600) {
+    const r = rngFor(seed, "sections"), a = amount;
+    this.list = [];
+    for (let t = 0, first = true; t < horizon; first = false) {
+      const len = r.uniform(8, 18) * 60;
+      const rest = !first && allowRest && r() < 0.18 * a;
+      const mel = rest ? 0 : r.uniform(1 - 0.5 * a, 1 + 0.6 * a);
+      const reg = first ? (r(), 0) : Math.round(r.uniform(-3, 3) * a);
+      this.list.push({ start: t, end: t + len, melody: mel, register: reg,
+        texture: r.uniform(1 - 0.6 * a, 1 + 0.9 * a), favor: ["I", "II", "iii", "V", "vi", "vii"][r.int(6)], boost: 1 + 2 * a });
+      t += len;
+    }
+  }
+  at(t) { return this.list.find((s) => s.start <= t && t < s.end) || this.list[this.list.length - 1]; }
+  index(t) { return this.list.indexOf(this.at(t)); }
+  textureMult(t) {
+    let out = this.list[0].texture;
+    for (const s of this.list.slice(1)) { if (s.start - 20 > t) break; const k = smooth((t - s.start + 20) / 40); out = out * (1 - k) + s.texture * k; }
+    return out;
+  }
 }
 
 // ---------- komposisi (dibuat bertahap, cocok untuk pemutaran tanpa akhir) ----------
@@ -166,8 +213,17 @@ export function chordLabel(P, name) {
 }
 
 export class Composer {
-  constructor(P, seed, shape) {
-    this.P = P; this.shape = shape;
+  constructor(P, seed, shape, sections = null) {
+    this.P = P; this.shape = shape; this.sections = sections;
+    // bobot chord: chord tambahan hanya kalau cocok; "rasa harmoni" sedikit berbeda per versi
+    const jr = rngFor(seed, "harmony");
+    this.weights = {};
+    for (const n of Object.keys(CHORDS)) {
+      let w = P.chordWeights[n] ?? CHORDS[n][1];
+      if (EXTRA_CHORDS.includes(n)) w = P.variation > 0 && this._chordOk(n) ? w * P.variation : 0;
+      if (P.variation > 0) w *= Math.exp(jr.uniform(-0.6, 0.6) * P.variation);
+      this.weights[n] = w;
+    }
     this.rc = rngFor(seed, "chords"); this.rm = rngFor(seed, "melody");
     this.chords = []; this.nextChordT = 0; this.prevName = null; this.prevNotes = [];
     const [lo, hi] = P.melody.range;
@@ -185,7 +241,8 @@ export class Composer {
       let name;
       if (this.prevName === null) name = "I";
       else {
-        const w = names.map((n) => (n === this.prevName ? 0 : (P.chordWeights[n] ?? CHORDS[n][1])));
+        const sec = this.sections?.at(this.nextChordT);
+        const w = names.map((n) => (n === this.prevName ? 0 : this.weights[n] * (sec && sec.favor === n ? sec.boost : 1)));
         if (w.every((x) => x === 0)) names.forEach((n, i) => { w[i] = n === this.prevName ? 0 : 1; });
         name = this.rc.choice(names, w);
       }
@@ -194,6 +251,11 @@ export class Composer {
       this.prevName = name; this.prevNotes = notes;
       this.nextChordT += dur - P.chordOverlap;
     }
+  }
+
+  _chordOk(name) {
+    const pcs = degreePcs(this.P, CHORDS[name][0]);
+    return pcs.every((a) => pcs.every((b) => a === b || ![1, 11].includes(mod(a - b, 12))));
   }
 
   chordAt(t) { let c = this.chords[0]; for (const x of this.chords) if (x.start <= t) c = x; return c; }
@@ -256,10 +318,16 @@ export class Composer {
       const keep = r(), isPhrase = r() < M.phraseProb, nExtra = 1 + r.int(2);
       const steps = [r.choice([-2, -1, 1, 2], [0.2, 0.35, 0.3, 0.15]), r.choice([-2, -1, 1, 2], [0.2, 0.35, 0.3, 0.15])];
       const spacing = [r.uniform(0.7, 1.9), r.uniform(0.7, 1.9)];
-      if (keep < 0.3 + 0.9 * this.shape(tm)) {
-        out.push({ t: tm, midi: this.pool[this.mIdx], vel: 1 });
+      const sec = this.sections?.at(tm), dens = sec ? sec.melody : 1, reg = sec ? sec.register : 0;
+      let base = this.mIdx;
+      if (dens > 0 && keep < (0.3 + 0.9 * this.shape(tm)) * dens) {
+        if (reg) {   // babak ini: melodi digeser beberapa langkah (jalan acaknya tidak berubah)
+          base = clip(this.mIdx + reg, 0, this.pool.length - 1);
+          if (M.consonance) base = this._snap(base, this._allowedAt(tm, ring));
+        }
+        out.push({ t: tm, midi: this.pool[base], vel: 1 });
         if (isPhrase) {
-          let tt = tm, j = this.mIdx;
+          let tt = tm, j = base;
           for (let k = 0; k < nExtra; k++) {
             tt += spacing[k];
             j = clip(j + steps[k], 0, this.pool.length - 1);

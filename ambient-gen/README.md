@@ -24,6 +24,8 @@ python -m pytest -q tests
 | `loudness.py` | Meter loudness BS.1770 streaming (integrated, short-term, LRA) |
 | `qc.py` | Laporan kualitas: LUFS, LRA, true peak, mono, keseimbangan spektrum 1/3 oktaf vs pink |
 | `harmony_check.py` | Hitung nada melodi yang bentrok (1 semiton) dengan chord |
+| `buat.py` | Antarmuka mudah: tujuan → rencana beberapa video yang saling berbeda → render, dengan katalog riwayat |
+| `mirip.py` | Skor kemiripan dua lagu (nada, urutan chord, warna suara, timbre, bentuk) |
 | `presets/*.toml` | Sembilan preset |
 | `export_web.py` | Ekspor preset + EQ ke `../web/presets.json` (jalankan setelah mengubah preset; dicek oleh tes) |
 
@@ -58,7 +60,8 @@ python -m pytest -q tests
 | `[melody]` | `timbre`, `density`, `decay`, `register`, `phrases`, `consonance` | soft/glass/kalimba/piano; 0..1; detik; 0..1; 0..1; 0/1 |
 | `[texture]` | `brightness` | 0..1 |
 | `[space]` | `reverb_decay`, `reverb_mix`, `delay_feedback`, `early`, `width`, `motion`, `shimmer` | detik; 0..1 |
-| `[form]` | `amount`, `period_min`, `intro_min`, `outro_min`, `bright` | kurva intensitas |
+| `[form]` | `type`, `amount`, `period_min`, `intro_min`, `outro_min`, `bright` | bentuk lagu (arc/rise/valley/calm/journey) & kurva intensitas |
+| `[variation]` | `amount` | 0..1: babak 8-18 menit (kepadatan & register melodi, angin, chord favorit), chord tambahan IV/Isus/I6, bobot chord per seed |
 | `[master]` | `target_lufs` | -14 (YouTube), -16 (tidur) |
 | `[qc]` | `profile` | default / calm / sleep |
 

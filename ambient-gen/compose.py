@@ -18,7 +18,13 @@ CHORDS = {
     "V":   ([4, 5, 1], 1.5),       # sus2
     "vi":  ([5, 0, 2, 6], 1.5),
     "vii": ([6, 1, 3, 5], 0.7),
+    # chord tambahan: hanya dipakai kalau variation.amount > 0, dan hanya kalau cocok dengan mode
+    # (tidak ada dua nada berjarak 1 semiton). Ditaruh di akhir supaya pilihan chord lama tidak berubah.
+    "IV":   ([3, 5, 0, 4], 1.0),   # subdominan + 9
+    "Isus": ([0, 3, 4, 1], 0.8),   # tonika sus4 + 9: menggantung, lembut
+    "I6":   ([0, 2, 4, 5], 0.8),   # tonika + 6: manis
 }
+EXTRA_CHORDS = ("IV", "Isus", "I6")
 NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
@@ -61,9 +67,26 @@ def voice_lead(prev, pcs, lo, hi):
     return sorted(set(notes))
 
 
-def chord_progression(total, rng):
+def _chord_ok(name):
+    """Chord tambahan hanya kalau tidak ada nada berjarak 1 semiton di dalamnya."""
+    pcs = degree_pcs(CHORDS[name][0])
+    return all((a - b) % 12 not in (1, 11) for a in pcs for b in pcs if a != b)
+
+
+def chord_progression(total, rng, seed=None):
     names = list(CHORDS)
+    var = float(getattr(config, "VARIATION", 0.0))
     weights = np.array([config.CHORD_WEIGHTS.get(n, CHORDS[n][1]) for n in names], float)
+    for i, n in enumerate(names):
+        if n in EXTRA_CHORDS and (var <= 0 or not _chord_ok(n)):
+            weights[i] = 0.0
+        elif n in EXTRA_CHORDS:
+            weights[i] *= var
+    if var > 0 and seed is not None:
+        # "rasa harmoni" berbeda per seed: tiap chord sedikit lebih/kurang disukai
+        jr = np.random.default_rng([seed, 10])
+        weights *= np.exp(jr.uniform(-0.6, 0.6, len(weights)) * var)
+    sections = getattr(config, "SECTIONS", None)
     t, prev_name, prev_notes, out = 0.0, None, [], []
     while t < total:
         dur = rng.uniform(*config.CHORD_SECONDS)
@@ -71,6 +94,10 @@ def chord_progression(total, rng):
             name = "I"  # mulai dari tonika
         else:
             w = weights.copy()
+            if sections is not None:   # chord favorit babak ini lebih sering muncul
+                sec = sections.at(t)
+                if sec["favor"] in names:
+                    w[names.index(sec["favor"])] *= sec["favor_boost"]
             w[names.index(prev_name)] = 0  # jangan ulang chord yang sama
             if w.sum() == 0:
                 w[:] = 1; w[names.index(prev_name)] = 0
@@ -153,10 +180,21 @@ def melody(total, rng, chords):
         n_extra = int(rng.integers(1, 3))
         steps = rng.choice([-2, -1, 1, 2], size=2, p=[.2, .35, .3, .15])
         spacing = rng.uniform(0.7, 1.9, size=2)
-        if config.SHAPE is None or keep < 0.3 + 0.9 * float(config.SHAPE(t)):
-            out.append(Event(round(t, 3), round(dur, 3), pool[idx], "melody", cur[2]))
+        sec = config.SECTIONS.at(t) if getattr(config, "SECTIONS", None) is not None else None
+        dens = sec["melody"] if sec else 1.0
+        reg = sec["register"] if sec else 0
+        if (config.SHAPE is None or keep < (0.3 + 0.9 * float(config.SHAPE(t))) * dens) and dens > 0:
+            if reg:   # babak ini: melodi digeser beberapa langkah tangga nada (jalan acaknya tidak berubah)
+                idx_out = int(np.clip(idx + reg, 0, len(pool) - 1))
+                if cons:
+                    idx_out = _snap(pool, idx_out, _allowed_at(t, ring, chords))
+                out.append(Event(round(t, 3), round(dur, 3), pool[idx_out], "melody", cur[2]))
+                idx_base = idx_out
+            else:
+                out.append(Event(round(t, 3), round(dur, 3), pool[idx], "melody", cur[2]))
+                idx_base = idx
             if is_phrase:
-                tt, j = t, idx
+                tt, j = t, idx_base
                 for k in range(n_extra):
                     tt += spacing[k]
                     j = int(np.clip(j + steps[k], 0, len(pool) - 1))
@@ -180,7 +218,7 @@ def compose(total, seed, with_melody=False):
     """Tiap lapisan memakai sumber acak sendiri yang hanya bergantung pada seed,
     jadi awal komposisi sama berapa pun durasinya (preview = awal versi panjang)."""
     events = [Event(0.0, total, m, "drone", "drone") for m in config.DRONE_NOTES]
-    chords = chord_progression(total, np.random.default_rng([seed, 1]))
+    chords = chord_progression(total, np.random.default_rng([seed, 1]), seed)
     for start, dur, name, notes in chords:
         dur = min(dur, total - start)
         events += [Event(round(start, 3), round(dur, 3), m, "pad", name) for m in notes]

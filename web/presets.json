@@ -49,6 +49,12 @@
    "shimmer": 0.0
   },
   "form": {
+   "type": [
+    "arc",
+    "rise",
+    "valley",
+    "journey"
+   ],
    "amount": 0.6,
    "period_min": [
     12,
@@ -60,6 +66,9 @@
   },
   "master": {
    "target_lufs": -16.0
+  },
+  "variation": {
+   "amount": 0.5
   },
   "qc": {
    "profile": "default"
@@ -124,6 +133,12 @@
     "shimmer": 0.25
    },
    "form": {
+    "type": [
+     "arc",
+     "rise",
+     "valley",
+     "journey"
+    ],
     "amount": 0.6,
     "period_min": [
      12,
@@ -135,6 +150,9 @@
    },
    "master": {
     "target_lufs": -14.0
+   },
+   "variation": {
+    "amount": 0.5
    },
    "qc": {
     "profile": "default"
@@ -199,6 +217,12 @@
     "shimmer": 0.4
    },
    "form": {
+    "type": [
+     "arc",
+     "rise",
+     "valley",
+     "journey"
+    ],
     "amount": 0.65,
     "period_min": [
      12,
@@ -210,6 +234,9 @@
    },
    "master": {
     "target_lufs": -14.0
+   },
+   "variation": {
+    "amount": 0.5
    },
    "qc": {
     "profile": "default"
@@ -273,6 +300,12 @@
     "shimmer": 0.0
    },
    "form": {
+    "type": [
+     "arc",
+     "rise",
+     "valley",
+     "journey"
+    ],
     "amount": 0.8,
     "period_min": [
      8,
@@ -284,6 +317,9 @@
    },
    "master": {
     "target_lufs": -14.0
+   },
+   "variation": {
+    "amount": 0.7
    },
    "qc": {
     "profile": "default"
@@ -345,6 +381,12 @@
     "shimmer": 0.0
    },
    "form": {
+    "type": [
+     "arc",
+     "rise",
+     "valley",
+     "journey"
+    ],
     "amount": 0.6,
     "period_min": [
      12,
@@ -356,6 +398,9 @@
    },
    "master": {
     "target_lufs": -14.0
+   },
+   "variation": {
+    "amount": 0.5
    },
    "qc": {
     "profile": "default"
@@ -418,6 +463,12 @@
     "shimmer": 0.0
    },
    "form": {
+    "type": [
+     "arc",
+     "rise",
+     "valley",
+     "journey"
+    ],
     "amount": 0.5,
     "period_min": [
      15,
@@ -429,6 +480,9 @@
    },
    "master": {
     "target_lufs": -14.0
+   },
+   "variation": {
+    "amount": 0.5
    },
    "qc": {
     "profile": "calm"
@@ -490,6 +544,11 @@
     "shimmer": 0.0
    },
    "form": {
+    "type": [
+     "valley",
+     "calm",
+     "arc"
+    ],
     "amount": 0.55,
     "period_min": [
      18,
@@ -501,6 +560,9 @@
    },
    "master": {
     "target_lufs": -15.0
+   },
+   "variation": {
+    "amount": 0.5
    },
    "qc": {
     "profile": "calm"
@@ -564,6 +626,7 @@
     "shimmer": 0.0
    },
    "form": {
+    "type": "calm",
     "amount": 0.15,
     "period_min": [
      12,
@@ -575,6 +638,9 @@
    },
    "master": {
     "target_lufs": -15.0
+   },
+   "variation": {
+    "amount": 0.25
    },
    "qc": {
     "profile": "calm"
@@ -636,6 +702,10 @@
     "shimmer": 0.0
    },
    "form": {
+    "type": [
+     "calm",
+     "arc"
+    ],
     "amount": 0.35,
     "period_min": [
      12,
@@ -647,6 +717,9 @@
    },
    "master": {
     "target_lufs": -16.0
+   },
+   "variation": {
+    "amount": 0.3
    },
    "qc": {
     "profile": "sleep"
@@ -705,6 +778,11 @@
     "shimmer": 0.0
    },
    "form": {
+    "type": [
+     "calm",
+     "arc",
+     "valley"
+    ],
     "amount": 0.6,
     "period_min": [
      12,
@@ -716,6 +794,9 @@
    },
    "master": {
     "target_lufs": -16.0
+   },
+   "variation": {
+    "amount": 0.3
    },
    "qc": {
     "profile": "sleep"

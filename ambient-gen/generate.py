@@ -56,22 +56,28 @@ def main():
         stem = os.path.join(a.outdir, f"{slug}_s{seed}_{int(total)}s")
         print(f"[{i + 1}/{a.variations}] {base['name']} seed {seed}, {total / 60:.1f} menit, "
               f"{r['key']['tonic']} {r['key']['mode']}")
-        t0 = time.time()
-        import pipeline  # import di sini: pipeline membaca config yang sudah diterapkan
         full = (a.duration or base["duration_min"]) * 60   # durasi versi panjang
-        events, lufs = pipeline.produce(stem, total, seed, form=r.get("form"),
-                                        form_total=max(full, total), stems=a.stems,
-                                        workers=a.workers)
-        qc_text = pipeline.save_meta(stem, events, text, lufs, mp3=not a.no_mp3, flac=a.flac,
-                                     qc=not a.no_qc, profile=r["qc"]["profile"],
-                                     flac16=a.flac16, seed=seed)
-        if qc_text:
-            print("\n".join("  " + l for l in qc_text.splitlines()[3:] if "[CEK" in l or "[MASALAH" in l)
-                  or "  QC: semua OK")
-        ext = "wav" + ("/.mp3" if not a.no_mp3 else "") + ("/.flac" if a.flac else "") \
-            + ("/.16bit.flac" if a.flac16 else "")
-        print(f"  -> {stem}.{ext}/.toml  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
+        render_resolved(r, seed, total, max(full, total), stem, stems=a.stems, workers=a.workers,
+                        mp3=not a.no_mp3, flac=a.flac, flac16=a.flac16, qc=not a.no_qc)
 
+
+def render_resolved(r, seed, total, full, stem, stems=False, workers=None, mp3=True, flac=False,
+                    flac16=False, qc=True, log=print):
+    """Render satu preset yang sudah di-resolve. Dipakai generate.py dan buat.py."""
+    settings.apply(r)
+    text = settings.to_toml(r)
+    t0 = time.time()
+    import pipeline  # import di sini: pipeline membaca config yang sudah diterapkan
+    events, lufs = pipeline.produce(stem, total, seed, form=r.get("form"), form_total=full,
+                                    stems=stems, workers=workers, log=log)
+    qc_text = pipeline.save_meta(stem, events, text, lufs, mp3=mp3, flac=flac, qc=qc,
+                                 profile=r["qc"]["profile"], flac16=flac16, seed=seed)
+    if qc_text:
+        log("\n".join("  " + l for l in qc_text.splitlines()[3:] if "[CEK" in l or "[MASALAH" in l)
+            or "  QC: semua OK")
+    ext = "wav" + ("/.mp3" if mp3 else "") + ("/.flac" if flac else "") + ("/.16bit.flac" if flac16 else "")
+    log(f"  -> {stem}.{ext}/.toml  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
+    return lufs, qc_text, events
 
 if __name__ == "__main__":
     main()

@@ -40,6 +40,7 @@ reverb_decay = 14.0
 reverb_mix = 0.6
 
 [form]
+type = ["valley", "calm", "arc"]
 amount = 0.55
 period_min = [18, 30]
 

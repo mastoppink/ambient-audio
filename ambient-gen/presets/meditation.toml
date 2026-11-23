@@ -33,6 +33,7 @@ reverb_decay = 13.0
 reverb_mix = 0.6
 
 [form]
+type = "calm"
 amount = 0.15    # hampir datar
 
 [master]
@@ -40,3 +41,6 @@ target_lufs = -15.0
 
 [qc]
 profile = "calm"
+
+[variation]
+amount = 0.25

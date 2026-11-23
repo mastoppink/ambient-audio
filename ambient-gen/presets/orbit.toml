@@ -43,3 +43,6 @@ period_min = [8, 16]
 
 [master]
 target_lufs = -14.0
+
+[variation]
+amount = 0.7   # paling banyak berubah: cocok untuk belajar/kerja

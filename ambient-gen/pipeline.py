@@ -19,7 +19,7 @@ import soundfile as sf
 import config
 import fx
 from compose import compose, to_dicts
-from form import make_shape
+from form import make_shape, Sections
 from loudness import LoudnessMeter
 from render import render_segment, LAYER_NAMES
 
@@ -42,6 +42,8 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     panjang supaya preview tetap sama persis dengan awal versi panjangnya."""
     t0 = time.time()
     config.SHAPE = make_shape(form_total or total, seed, form) if form else None
+    config.SECTIONS = (Sections(form_total or total, seed, config.VARIATION, config.MELODY["level"] > 0)
+                       if config.VARIATION > 0 else None)
     events = compose(total, seed, with_melody=True)
     total_n = int(total * SR)
     seg = int(config.SEGMENT_SECONDS * SR)
