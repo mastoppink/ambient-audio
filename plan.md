@@ -76,8 +76,9 @@ ambient-gen/
 ```
 
 ## Milestone
-1. Satu nada pad 30 detik terdengar bagus
-2. Drone + pad 3 menit dengan pergantian chord
-3. Ketiga lapisan + tekstur + FX, 10 menit
-4. Render blok + master, 60 menit
+1. ✅ Satu nada pad 30 detik terdengar bagus
+2. ✅ Drone + pad 3 menit dengan pergantian chord
+3. ✅ Ketiga lapisan + tekstur + FX, 10 menit
+3.5. ✅ Preset TOML, kontrol makro, mode, variasi per seed
+4. ✅ Render blok paralel + master streaming + bentuk makro, 60 menit (~3 menit render)
 5. Video

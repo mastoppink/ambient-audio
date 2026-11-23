@@ -24,6 +24,7 @@ File `.toml` itu bisa dipakai lagi sebagai preset dan menghasilkan audio yang id
 | `[drone]`, `[texture]` | `brightness` | 0..1 |
 | `[melody]` | `density`, `decay`, `register` | 0..1 jarang→sering; detik; 0..1 rendah→tinggi |
 | `[space]` | `reverb_decay`, `reverb_mix`, `delay_feedback` | detik; 0..1; 0..0.6 |
+| `[form]` | `amount`, `period_min`, `intro_min`, `outro_min`, `bright` | bentuk makro: seberapa kuat & seberapa lambat intensitas naik-turun |
 | `[master]` | `target_lufs` | mis. -16 (umum) atau -18 (tidur) |
 
 Variasi: angka boleh ditulis `[min, max]` dan daftar teks `["E", "A"]`; nilainya dipilih per seed.
@@ -62,3 +63,17 @@ python milestone3.py --dur 120 --stems   # cepat + simpan tiap lapisan kering
 - Efek (`FX`, fx.py): chorus pada pad → reverb konvolusi dengan IR sintetis (decay 11 detik,
   high-pass 180 Hz di jalur reverb, send berbeda tiap lapisan) → HPF 30 Hz → normalisasi -16 LUFS → limiter -1 dBFS.
 - Limiter dibuat sendiri karena `Limiter` pedalboard menambah makeup gain sendiri (~+5 dB) sehingga loudness meleset.
+
+## Milestone 4: render panjang yang cepat + bentuk makro
+```bash
+python generate.py presets/nebula.toml --duration 60          # ~3 menit di 4 core
+python generate.py presets/nebula.toml --duration 75 --workers 2 --no-mp3
+```
+- Sintesis per segmen 30 detik, paralel di semua core (`pipeline.py`, `render.render_segment`).
+  Tiap suara bisa di-render mulai titik mana pun dengan hasil identik, jadi segmen tidak berpengaruh ke suara.
+- Efek streaming dengan state dibawa antar segmen: chorus, delay, reverb konvolusi overlap-add, HPF.
+- Dua pass: (1) pra-master ke WAV float sementara + ukur loudness (`loudness.py`, BS.1770);
+  (2) gain ke target LUFS + limiter streaming → WAV 24-bit. RAM ~1,6 GB berapa pun durasinya.
+- Bentuk makro (`form.py`): kurva intensitas 0..1 (intro, dua gelombang lambat, outro) yang membuka
+  filter pad, menambah kepadatan melodi, dan menaikkan tekstur saat intens. Level keseluruhan tetap rata.
+- Disk: WAV 24-bit 60 menit ≈ 1 GB (+ ~1,4 GB sementara selama render), MP3 192k ≈ 86 MB.

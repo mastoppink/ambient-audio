@@ -99,7 +99,9 @@ def melody(total, rng, chords):
             near = [i for i in range(len(pool)) if pool[i] % 12 in chord_pcs]
             idx = min(near, key=lambda i: abs(i - idx))
         dur = min(p["decay"] * 2.5, total - t)
-        out.append(Event(round(t, 3), round(dur, 3), pool[idx], "melody", cur[2]))
+        keep = rng.random()   # selalu diambil -> urutan acak tidak bergantung pada kurva
+        if config.SHAPE is None or keep < 0.3 + 0.9 * float(config.SHAPE(t)):
+            out.append(Event(round(t, 3), round(dur, 3), pool[idx], "melody", cur[2]))
         gap = rng.uniform(*p["gap"])
         if rng.random() < p["rest_prob"]:
             gap += rng.uniform(10, 30)

@@ -1,5 +1,16 @@
-"""Alur lengkap: komposisi -> sintesis -> efek -> master. Dipakai generate.py."""
+"""Alur lengkap streaming: komposisi -> sintesis paralel per segmen -> efek -> master.
+
+Pass 1: segmen 30 detik disintesis paralel (semua core), lalu efek dijalankan berurutan
+        dengan state dibawa antar segmen; hasil pra-master ditulis ke WAV float sementara
+        sambil loudness diukur.
+Pass 2: baca ulang per potongan, terapkan gain ke target LUFS + limiter, tulis WAV 24-bit.
+Memori tetap kecil berapa pun durasinya.
+"""
 import json
+import multiprocessing as mp
+import os
+import shutil
+import subprocess
 import time
 
 import numpy as np
@@ -8,49 +19,96 @@ import soundfile as sf
 import config
 import fx
 from compose import compose, to_dicts
-from render import render_layers, render_texture
+from form import make_shape
+from loudness import LoudnessMeter
+from render import render_segment, LAYER_NAMES
 
 SR = config.SAMPLE_RATE
+_JOB = {}
 
 
-def produce(total, seed, fade_out=30.0, stems_prefix=None, log=print):
+def _work(i):
+    j = _JOB
+    start = i * j["seg"]
+    n = min(j["seg"], j["total_n"] - start)
+    return i, render_segment(j["events"], start, n, j["seed"], i)
+
+
+def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=False,
+            workers=None, log=print):
+    """Render ke {stem}.wav (24-bit). Mengembalikan (events, lufs).
+
+    form_total: durasi yang dipakai kurva bentuk. Untuk preview, isi dengan durasi versi
+    panjang supaya preview tetap sama persis dengan awal versi panjangnya."""
     t0 = time.time()
-    p = config.FX
+    config.SHAPE = make_shape(form_total or total, seed, form) if form else None
     events = compose(total, seed, with_melody=True)
+    total_n = int(total * SR)
+    seg = int(config.SEGMENT_SECONDS * SR)
+    n_seg = -(-total_n // seg)
+    _JOB.update(events=events, seed=seed, total_n=total_n, seg=seg)
 
-    layers = render_layers(events, total, seed)
-    for k in ("drone", "pad", "melody"):
-        layers.setdefault(k, np.zeros((int(total * SR), 2)))
-    layers["texture"] = render_texture(total, seed)
-    log(f"  sintesis {time.time() - t0:.0f}s")
-    if stems_prefix:
-        for k, v in layers.items():
-            sf.write(f"{stems_prefix}.{k}.wav", v.astype(np.float32), SR, subtype="FLOAT")
-
-    layers["pad"] = fx.chorus(layers["pad"])
-    layers["melody"] = fx.delay(layers["melody"], p)
-
-    dry = sum(layers.values())
-    send = sum(layers[k] * p["send"][k] for k in layers)
+    p = config.FX
+    chorus, delay = fx.stream_chorus(), fx.stream_delay(p)
     ir = fx.make_ir(p["reverb_decay"], p["reverb_predelay"], np.random.default_rng([seed, 5]),
                     p["reverb_hp"])
-    mix = dry * config.MIX["dry"] + fx.reverb(send, ir) * config.MIX["wet"]
-
+    reverb, hpf = fx.StreamReverb(ir), fx.StreamHighpass(30.0)
+    meter = LoudnessMeter(SR)
     n_fade = int(min(fade_out, total / 4) * SR)
-    mix[-n_fade:] *= np.linspace(1, 0, n_fade)[:, None] ** 2
-    mix, lufs = fx.master(mix, p)
-    return mix, events, lufs
+
+    tmp = f"{stem}.premaster.wav"
+    stem_files = {k: sf.SoundFile(f"{stem}.{k}.wav", "w", SR, 2, "FLOAT") for k in LAYER_NAMES} \
+        if stems else {}
+    workers = workers or os.cpu_count() or 1
+    ctx = mp.get_context("fork")   # anak proses mewarisi config yang sudah diterapkan preset
+    with sf.SoundFile(tmp, "w", SR, 2, "FLOAT") as out, ctx.Pool(workers) as pool:
+        for i, layers in pool.imap(_work, range(n_seg)):
+            for k, f in stem_files.items():
+                f.write(layers[k])
+            layers = {k: v.astype(np.float64) for k, v in layers.items()}
+            layers["pad"] = chorus(layers["pad"])
+            layers["melody"] = delay(layers["melody"])
+            dry = sum(layers.values())
+            send = sum(layers[k] * p["send"][k] for k in layers)
+            mix = dry * config.MIX["dry"] + reverb(send) * config.MIX["wet"]
+            mix = hpf(mix)
+            # fade-out di akhir lagu
+            s0 = i * seg
+            t_idx = s0 + np.arange(len(mix))
+            m = t_idx >= total_n - n_fade
+            if m.any():
+                mix[m] *= (np.clip((total_n - t_idx[m]) / n_fade, 0, 1) ** 2)[:, None]
+            meter.add(mix)
+            out.write(mix.astype(np.float32))
+            done = (i + 1) / n_seg
+            el = time.time() - t0
+            log(f"\r  pass 1: {done * 100:5.1f}%  {el:4.0f}s  (sisa ~{el / done - el:4.0f}s)", end="")
+    for f in stem_files.values():
+        f.close()
+    log("")
+
+    gain = 10 ** ((p["target_lufs"] - meter.integrated()) / 20)
+    lim = fx.StreamLimiter(p["ceiling_db"])
+    meter2 = LoudnessMeter(SR)
+    with sf.SoundFile(tmp) as src, sf.SoundFile(f"{stem}.wav", "w", SR, 2, "PCM_24") as dst:
+        for block in src.blocks(blocksize=seg, dtype="float64"):
+            y = lim.push(block * gain)
+            meter2.add(y)
+            dst.write(y)
+        y = lim.flush()
+        meter2.add(y)
+        dst.write(y)
+    os.remove(tmp)
+    lufs = meter2.integrated()
+    log(f"  pass 2 selesai, {time.time() - t0:.0f}s total")
+    return events, lufs
 
 
-def save(path_stem, mix, events, resolved_toml, lufs, mp3=True):
-    import subprocess, shutil
-    wav = f"{path_stem}.wav"
-    sf.write(wav, mix.astype(np.float32), SR, subtype="PCM_24")
-    with open(f"{path_stem}.toml", "w") as f:
+def save_meta(stem, events, resolved_toml, lufs, mp3=True):
+    with open(f"{stem}.toml", "w") as f:
         f.write(f"# loudness terukur: {lufs:.1f} LUFS\n" + resolved_toml)
-    with open(f"{path_stem}.events.json", "w") as f:
+    with open(f"{stem}.events.json", "w") as f:
         json.dump(to_dicts(events), f, indent=1)
     if mp3 and shutil.which("ffmpeg"):
-        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", wav, "-b:a", "192k",
-                        f"{path_stem}.mp3"], check=True)
-    return wav
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", f"{stem}.wav",
+                        "-b:a", "192k", f"{stem}.mp3"], check=True)

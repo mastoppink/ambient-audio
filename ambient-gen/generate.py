@@ -28,6 +28,8 @@ def main():
                     help="override, mis. pad.brightness=0.3 atau 'pad.width=[0.2,0.8]'")
     ap.add_argument("--stems", action="store_true", help="simpan tiap lapisan kering")
     ap.add_argument("--outdir", default="out")
+    ap.add_argument("--workers", type=int, help="jumlah proses paralel (default: semua core)")
+    ap.add_argument("--no-mp3", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="tampilkan nilai final tanpa render")
     a = ap.parse_args()
 
@@ -41,6 +43,8 @@ def main():
         seed = seed0 + i
         r = settings.resolve(base, seed)
         r["duration_min"] = round(total / 60, 3)
+        if a.preview:   # simpan durasi penuh, supaya .toml preview langsung bisa dipakai untuk versi panjang
+            r["duration_min"] = a.duration or base["duration_min"]
         settings.apply(r)
         text = settings.to_toml(r)
         if a.dry_run:
@@ -51,8 +55,11 @@ def main():
               f"{r['key']['tonic']} {r['key']['mode']}")
         t0 = time.time()
         import pipeline  # import di sini: pipeline membaca config yang sudah diterapkan
-        mix, events, lufs = pipeline.produce(total, seed, stems_prefix=stem if a.stems else None)
-        pipeline.save(stem, mix, events, text, lufs)
+        full = (a.duration or base["duration_min"]) * 60   # durasi versi panjang
+        events, lufs = pipeline.produce(stem, total, seed, form=r.get("form"),
+                                        form_total=max(full, total), stems=a.stems,
+                                        workers=a.workers)
+        pipeline.save_meta(stem, events, text, lufs, mp3=not a.no_mp3)
         print(f"  -> {stem}.wav/.mp3/.toml  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
 
 

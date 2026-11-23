@@ -68,3 +68,7 @@ FX = dict(
 # --- Milestone 3.5 ---
 CHORD_WEIGHTS = {}          # override bobot chord dari preset, mis. {"II": 4.0}
 MIX = dict(dry=0.75, wet=1.0)
+
+# --- Milestone 4 ---
+SHAPE = None              # fungsi kurva intensitas t -> 0..1 (form.py), None = datar
+SEGMENT_SECONDS = 30.0    # unit render paralel

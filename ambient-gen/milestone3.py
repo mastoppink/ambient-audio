@@ -5,9 +5,6 @@ Pakai:  python milestone3.py [--dur 600] [--seed 123] [--stems]
 """
 import argparse
 
-import numpy as np
-import soundfile as sf
-
 import config
 import pipeline
 
@@ -19,9 +16,7 @@ def main():
     ap.add_argument("--stems", action="store_true", help="simpan tiap lapisan (kering)")
     ap.add_argument("--out", default="out/milestone3.wav")
     a = ap.parse_args()
-    stem = a.out[:-4]
-    mix, events, lufs = pipeline.produce(a.dur, a.seed, stems_prefix=stem if a.stems else None)
-    sf.write(a.out, mix.astype(np.float32), config.SAMPLE_RATE, subtype="PCM_24")
+    events, lufs = pipeline.produce(a.out[:-4], a.dur, a.seed, stems=a.stems)
     print(f"tulis {a.out}  loudness {lufs:.1f} LUFS")
 
 

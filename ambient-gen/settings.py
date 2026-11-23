@@ -50,9 +50,16 @@ DEFAULTS = {
         "reverb_mix": 0.5,           # 0 kering .. 1 sangat basah
         "delay_feedback": 0.3,
     },
+    "form": {
+        "amount": 0.6,               # 0 datar .. 1 naik-turun intensitas sangat terasa
+        "period_min": [12, 25],      # panjang satu "gelombang" intensitas (menit)
+        "intro_min": 3,
+        "outro_min": 5,
+        "bright": 0.8,               # seberapa jauh intensitas membuka filter pad (oktaf)
+    },
     "master": {"target_lufs": -16.0},
 }
-RANGE_KEYS = {("pad", "chord_seconds")}
+RANGE_KEYS = {("pad", "chord_seconds"), ("form", "period_min")}
 
 
 def deep_merge(base, over):
@@ -162,8 +169,10 @@ def apply(r):
     config.MELODY = dict(config.MELODY, gap=(mean_gap * 0.5, mean_gap * 1.5),
                          range=(lo, lo + 24), decay=m["decay"], level=mix["melody"])
 
+    fm = r["form"]
+    config.PAD["shape_bright"] = fm["amount"] * fm["bright"]
     tb = r["texture"]["brightness"]
-    config.TEXTURE = dict(config.TEXTURE, level=mix["texture"],
+    config.TEXTURE = dict(config.TEXTURE, level=mix["texture"], shape_amount=fm["amount"],
                           band_lo=_lerp_log(120, 600, tb), band_hi=_lerp_log(1500, 7000, tb))
 
     sp = r["space"]
