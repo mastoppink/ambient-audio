@@ -1,0 +1,33 @@
+# Nebula: luas dan terang, warna khas Lydian. Paling dekat dengan milestone 3.
+name = "Nebula"
+seed = 2001
+duration_min = 60
+
+[key]
+tonic = "D"
+mode = "lydian"
+
+[mix]
+drone = 0.8
+pad = 0.55
+melody = 0.25
+texture = 0.04
+
+[pad]
+brightness = [0.5, 0.7]
+width = [0.5, 0.8]
+movement = 0.5
+chord_seconds = [60, 100]
+chord_weights = { II = 3.5 }   # tonjolkan chord II (warna #4 Lydian)
+
+[melody]
+density = 0.6
+decay = 9.0
+register = 0.6
+
+[texture]
+brightness = 0.6
+
+[space]
+reverb_decay = 12.0
+reverb_mix = 0.55

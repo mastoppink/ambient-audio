@@ -9,16 +9,22 @@ import numpy as np
 
 import config
 
-# Chord sebagai derajat skala (0-based) dari D Lydian, dengan bobot pemilihan.
-# I = D, II = E (mayor, ciri khas Lydian), iii = F#m, V = A, vi = Bm, vii = C#m
+# Template chord sebagai derajat skala (0-based), berlaku untuk mode apa pun.
+# Kunci = nama romawi relatif terhadap tonika; nilai = (derajat, bobot pemilihan).
 CHORDS = {
-    "Dmaj9":   ([0, 2, 4, 1], 3.0),   # D F# A E
-    "Emaj/D":  ([1, 3, 5, 0], 2.5),   # E G# B + D  (warna Lydian)
-    "F#m7":    ([2, 4, 6, 1], 1.5),
-    "Asus2":   ([4, 5, 1], 1.5),       # A B E
-    "Bm9":     ([5, 0, 2, 6], 1.5),
-    "C#m7":    ([6, 1, 3, 5], 0.7),
+    "I":   ([0, 2, 4, 1], 3.0),   # tonika + 9
+    "II":  ([1, 3, 5, 0], 2.5),   # derajat 2 di atas pedal tonika (di Lydian: warna khas #4)
+    "iii": ([2, 4, 6, 1], 1.5),
+    "V":   ([4, 5, 1], 1.5),       # sus2
+    "vi":  ([5, 0, 2, 6], 1.5),
+    "vii": ([6, 1, 3, 5], 0.7),
 }
+NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+
+
+def chord_label(name):
+    root = (config.TONIC_MIDI + config.SCALE[CHORDS[name][0][0]]) % 12
+    return f"{name}({NOTE_NAMES[root]})"
 
 
 @dataclass
@@ -56,18 +62,20 @@ def voice_lead(prev, pcs, lo, hi):
 
 def chord_progression(total, rng):
     names = list(CHORDS)
-    weights = np.array([CHORDS[n][1] for n in names])
+    weights = np.array([config.CHORD_WEIGHTS.get(n, CHORDS[n][1]) for n in names], float)
     t, prev_name, prev_notes, out = 0.0, None, [], []
     while t < total:
         dur = rng.uniform(*config.CHORD_SECONDS)
         if prev_name is None:
-            name = "Dmaj9"  # mulai dari tonika
+            name = "I"  # mulai dari tonika
         else:
             w = weights.copy()
             w[names.index(prev_name)] = 0  # jangan ulang chord yang sama
+            if w.sum() == 0:
+                w[:] = 1; w[names.index(prev_name)] = 0
             name = rng.choice(names, p=w / w.sum())
         notes = voice_lead(prev_notes, degree_pcs(CHORDS[name][0]), *config.PAD_RANGE)
-        out.append((t, dur, name, notes))
+        out.append((t, dur, chord_label(name), notes))
         prev_name, prev_notes = name, notes
         t += dur - config.CHORD_OVERLAP
     return out
@@ -99,14 +107,16 @@ def melody(total, rng, chords):
     return out
 
 
-def compose(total, rng, with_melody=False):
+def compose(total, seed, with_melody=False):
+    """Tiap lapisan memakai sumber acak sendiri yang hanya bergantung pada seed,
+    jadi awal komposisi sama berapa pun durasinya (preview = awal versi panjang)."""
     events = [Event(0.0, total, m, "drone", "drone") for m in config.DRONE_NOTES]
-    chords = chord_progression(total, rng)
+    chords = chord_progression(total, np.random.default_rng([seed, 1]))
     for start, dur, name, notes in chords:
         dur = min(dur, total - start)
         events += [Event(round(start, 3), round(dur, 3), m, "pad", name) for m in notes]
     if with_melody:
-        events += melody(total, rng, chords)
+        events += melody(total, np.random.default_rng([seed, 2]), chords)
     return events
 
 

@@ -2,6 +2,33 @@
 
 Generator ambient "Spacenight". Lihat `../plan.md` untuk rencana lengkap.
 
+## Pemakaian (sejak milestone 3.5)
+```bash
+python generate.py presets/nebula.toml                       # render sesuai preset
+python generate.py presets/drift.toml --preview 120 --variations 8   # coba 8 versi pendek
+python generate.py out/drift_s3005_120s.toml --duration 60   # versi panjang dari yang disukai
+python generate.py presets/deep_sleep.toml --set key.mode=dorian --set pad.brightness=0.4
+python generate.py presets/nebula.toml --dry-run --variations 3     # lihat nilai final tanpa render
+```
+Setiap render menulis `.wav`, `.mp3`, `.events.json`, dan `.toml` berisi semua nilai final.
+File `.toml` itu bisa dipakai lagi sebagai preset dan menghasilkan audio yang identik.
+
+### Isi preset
+| Bagian | Kunci | Arti |
+|---|---|---|
+| (atas) | `name`, `seed`, `duration_min` | |
+| `[key]` | `tonic`, `mode` | mode: ionian, dorian, phrygian, lydian, mixolydian, aeolian |
+| `[mix]` | `drone`, `pad`, `melody`, `texture` | level tiap lapisan (0 = mati) |
+| `[pad]` | `brightness`, `width`, `movement` | 0..1: gelap→terang, sempit→lebar, statis→bergerak |
+| | `chord_seconds`, `chord_weights` | durasi tiap chord; bobot chord I, II, iii, V, vi, vii (0 = tidak dipakai) |
+| `[drone]`, `[texture]` | `brightness` | 0..1 |
+| `[melody]` | `density`, `decay`, `register` | 0..1 jarang→sering; detik; 0..1 rendah→tinggi |
+| `[space]` | `reverb_decay`, `reverb_mix`, `delay_feedback` | detik; 0..1; 0..0.6 |
+| `[master]` | `target_lufs` | mis. -16 (umum) atau -18 (tidur) |
+
+Variasi: angka boleh ditulis `[min, max]` dan daftar teks `["E", "A"]`; nilainya dipilih per seed.
+Seed yang sama selalu memberi hasil yang sama, dan preview adalah awal yang persis dari versi panjangnya.
+
 ## Setup
 ```bash
 pip install -r requirements.txt

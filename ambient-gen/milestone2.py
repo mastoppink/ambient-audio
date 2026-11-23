@@ -20,15 +20,14 @@ def main():
     ap.add_argument("--out", default="out/milestone2.wav")
     a = ap.parse_args()
 
-    rng = np.random.default_rng(a.seed)
-    events = compose(a.dur, rng)
+    events = compose(a.dur, a.seed)
     for start, label in sorted({(e.start, e.label) for e in events if e.layer == "pad"}):
         notes = [e.midi for e in events if e.start == start and e.layer == "pad"]
         print(f"{start:6.1f}s  {label:8s} {notes}")
     with open(a.out.replace(".wav", ".events.json"), "w") as f:
         json.dump(to_dicts(events), f, indent=1)
 
-    mix = render_events(events, a.dur, rng)
+    mix = render_events(events, a.dur, a.seed)
     fade = int(5 * config.SAMPLE_RATE)
     mix[-fade:] *= np.linspace(1, 0, fade)[:, None] ** 2
     mix /= np.max(np.abs(mix)) + 1e-12

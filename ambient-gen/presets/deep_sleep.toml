@@ -1,0 +1,39 @@
+# Deep Sleep: gelap, lambat, hampir tanpa melodi. Untuk tidur.
+name = "Deep Sleep"
+seed = 1001
+duration_min = 60
+
+[key]
+tonic = "D"
+mode = "aeolian"
+
+[mix]
+drone = 0.9
+pad = 0.5
+melody = 0.12
+texture = 0.025
+
+[pad]
+brightness = [0.2, 0.35]   # rentang: tiap seed sedikit beda warna
+width = 0.6
+movement = 0.25
+chord_seconds = [80, 130]
+
+[drone]
+brightness = 0.15
+
+[melody]
+density = 0.2
+decay = 12.0
+register = 0.2
+
+[texture]
+brightness = 0.2
+
+[space]
+reverb_decay = 14.0
+reverb_mix = 0.6
+delay_feedback = 0.25
+
+[master]
+target_lufs = -18.0   # lebih pelan untuk tidur

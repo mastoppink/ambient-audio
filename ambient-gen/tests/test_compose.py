@@ -6,7 +6,7 @@ from compose import compose, voice_lead
 
 
 def test_events_in_scale_and_range():
-    ev = compose(300, np.random.default_rng(3))
+    ev = compose(300, 3)
     scale_pcs = {(config.TONIC_MIDI + s) % 12 for s in config.SCALE}
     lo, hi = config.PAD_RANGE
     for e in ev:
@@ -23,7 +23,7 @@ def test_voice_leading_moves_little():
 
 
 def test_chords_overlap_for_crossfade():
-    ev = compose(300, np.random.default_rng(3))
+    ev = compose(300, 3)
     starts = sorted({e.start for e in ev if e.layer == "pad"})
     ends = {e.start: e.start + e.dur for e in ev if e.layer == "pad"}
     for s0, s1 in zip(starts, starts[1:]):

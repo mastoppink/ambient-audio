@@ -64,3 +64,7 @@ FX = dict(
     target_lufs=-16.0,
     ceiling_db=-1.0,
 )
+
+# --- Milestone 3.5 ---
+CHORD_WEIGHTS = {}          # override bobot chord dari preset, mis. {"II": 4.0}
+MIX = dict(dry=0.75, wet=1.0)

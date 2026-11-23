@@ -97,7 +97,7 @@ def pad_voice(midi, duration, rng, p):
         ph = rng.uniform(0, 2 * np.pi)
         x = p["saw_mix"] * saw_additive(f, n, ph, p["harmonics"])
         x += (1 - p["saw_mix"]) * triangle_additive(f, n, ph, p["harmonics"] // 2)
-        pan = 0.5 + 0.35 * spread  # tidak sampai ujung
+        pan = 0.5 + p.get("stereo_spread", 0.35) * spread  # tidak sampai ujung
         L += x * np.cos(pan * np.pi / 2)
         R += x * np.sin(pan * np.pi / 2)
     sub = p["sub_level"] * sine(f0 / 2, n, rng.uniform(0, 2 * np.pi)) * np.sqrt(0.5) * k / 2
