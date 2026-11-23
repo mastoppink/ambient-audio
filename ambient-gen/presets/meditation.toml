@@ -37,3 +37,6 @@ amount = 0.15    # hampir datar
 
 [master]
 target_lufs = -15.0
+
+[qc]
+profile = "calm"

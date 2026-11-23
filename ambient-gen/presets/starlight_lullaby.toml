@@ -8,7 +8,7 @@ tonic = "A"
 mode = "ionian"
 
 [mix]
-drone = 0.6
+drone = 0.8
 pad = 0.55
 melody = 0.15
 texture = 0.02
@@ -23,7 +23,7 @@ chord_weights = { iii = 1.0, vii = 0 }   # hanya chord yang paling manis
 
 [drone]
 brightness = 0.2
-sub = 0.25
+sub = 0.35
 
 [melody]
 timbre = "piano"

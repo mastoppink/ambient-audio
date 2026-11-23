@@ -8,13 +8,13 @@ tonic = "C"
 mode = "phrygian"
 
 [mix]
-drone = 0.8
+drone = 0.7
 pad = 0.5
 melody = 0.16
 texture = 0.04
 
 [pad]
-brightness = [0.3, 0.42]
+brightness = [0.38, 0.5]
 width = 0.75
 movement = 0.3
 life = 0.45
@@ -48,3 +48,6 @@ period_min = [15, 28]
 
 [master]
 target_lufs = -14.0
+
+[qc]
+profile = "calm"

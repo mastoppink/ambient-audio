@@ -66,7 +66,7 @@ DEFAULTS = {
         "bright": 0.8,               # seberapa jauh intensitas membuka filter pad (oktaf)
     },
     "master": {"target_lufs": -16.0},
-    "qc": {"profile": "default"},    # default / sleep
+    "qc": {"profile": "default"},    # default / calm / sleep
 }
 RANGE_KEYS = {("pad", "chord_seconds"), ("form", "period_min")}
 

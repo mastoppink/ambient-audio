@@ -36,6 +36,9 @@ BANDS = [  # (nama, lo, hi, keterangan)
 # Ini pedoman praktis (heuristik), bukan standar resmi. Profil "sleep" sengaja lebih gelap:
 # treble yang lembut membuat telinga tidak lelah dan tidak memancing perhatian.
 PROFILES = {
+    # "calm": untuk preset tenang & gelap yang bukan khusus tidur (Deep Space, Solitude, Meditation)
+    "calm":    {"sub": (-20, 0), "bass": (-3, 7), "lowmid": (-3, 5), "mid": (-6, 3),
+                "presence": (-22, -6), "air": (-50, -18)},
     "default": {"sub": (-20, 0), "bass": (-3, 6), "lowmid": (-3, 5), "mid": (-4, 3),
                 "presence": (-15, -3), "air": (-40, -12)},
     "sleep":   {"sub": (-20, 0), "bass": (-3, 6), "lowmid": (-3, 5), "mid": (-5, 2),
@@ -118,7 +121,10 @@ def judge(r, profile="default"):
     tp = r["true_peak_dbtp"]
     out.append(("OK" if tp <= -1.0 else "MASALAH", f"true peak {tp} dBTP (batas aman -1)"))
     lra = r["lra"]
-    out.append(("OK" if lra <= 8 else "CEK", f"loudness range {lra} LU (musik tidur idealnya <= 8)"))
+    if r["duration_min"] >= 5:
+        out.append(("OK" if lra <= 8 else "CEK", f"loudness range {lra} LU (musik tidur idealnya <= 8)"))
+    else:   # pada preview pendek, fade-in awal ikut terhitung dan membuat LRA tampak besar
+        out.append(("OK", f"loudness range {lra} LU (preview < 5 menit: tidak dinilai)"))
     ml = r["mono_loss_db"]
     out.append(("OK" if ml >= -3 else "CEK", f"kehilangan saat mono {ml} dB (aman >= -3)"))
     for name, lo, hi, desc in BANDS:

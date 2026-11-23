@@ -45,3 +45,6 @@ period_min = [18, 30]
 
 [master]
 target_lufs = -15.0
+
+[qc]
+profile = "calm"
