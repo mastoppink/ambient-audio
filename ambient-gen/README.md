@@ -101,7 +101,7 @@ Dinormalkan ke energi impuls 1 (setara IR konvolusi). Inti per sampel dikompilas
 
 Diukur terhadap reverb konvolusi lama (chord 3 detik lalu hening): gerak spektrum ekor 13-21× lebih besar,
 kerapatan gema penuh dalam 105 ms, keseimbangan pita frekuensi mix dalam ±2 dB, waktu render sama.
-Versi web masih memakai konvolusi.
+Versi web: AudioWorklet (`web/js/dsp-core.js`, kode yang sama untuk worklet dan normalisasi).
 
 ## Kehangatan analog (`[warmth]`)
 
@@ -110,6 +110,7 @@ Versi web masih memakai konvolusi.
 (low-shelf +1,2·amount dB di 90 Hz, high-shelf -2,5·amount dB di 9 kHz, lowpass), dan desis pita relatif.
 Terukur: harmonik ke-2/ke-3 -62/-52 dB (amount 0,3) sampai -38 dB (amount 1); wow ±1,5 cent (tape 0,5);
 desis -60 dB relatif musik (noise 0,25). Pada mix Nebula: pita frekuensi berubah ≤ 0,8 dB, true peak turun ~1 dB.
+Versi web: AudioWorklet `warmth` + biquad warna nada.
 
 ## Lapisan awan (`[cloud]`, `mix.cloud`)
 
@@ -118,7 +119,7 @@ yang sedang berbunyi (digeser 0-2 oktaf menurut `register`), detune ±8 cent, pa
 dengan sumber acak [seed, 20, ember], jadi render per segmen identik. Kepadatan mengikuti kurva intensitas dan
 babak. EQ: high-pass 350 Hz, high-shelf -3 dB di 6 kHz; kirim ke reverb 0,95.
 Pada Nebula (mix.cloud 0,18): pita mid +1,1 dB, presence/air tidak naik, korelasi L/R 0,57 → 0,51 (lebih lebar),
-waktu render tidak bertambah. Versi web belum memiliki lapisan ini.
+waktu render tidak bertambah. Versi web: oscillator per butir dengan algoritme ember yang sama (engine._scheduleCloud).
 
 ## Piano (model fisik)
 
@@ -127,4 +128,12 @@ spektrum dari posisi palu (~1/7-1/8.5 senar → lubang di parsial ke-7/8) dan ve
 banyak energi di atas 1,5 kHz), 2-3 senar unison (0,2-0,8 cent, senar tengah dominan → denyut median ±3,8 dB),
 peluruhan dua tahap per parsial yang lebih panjang di nada rendah (C3 > 30 s, C6 ~12 s sampai -40 dB),
 bunyi palu ~3 ms, dan konvolusi dengan IR papan suara 120 ms. Nada dihitung utuh lalu diambil bagiannya
-(render per segmen identik). Biaya: +8% waktu render untuk preset ber-piano. Versi web masih memakai piano lama.
+(render per segmen identik). Biaya: +8% waktu render untuk preset ber-piano.
+Papan suara: bunyi langsung dominan (73% energi); versi awal membuat resonansi ~50x lebih kuat sehingga piano
+terlalu redup (parsial atas -20..-40 dB), sudah diperbaiki di Python dan web.
+Versi web (`web/js/piano.js`): tiap nada dirender sekali di OfflineAudioContext lalu di-cache; rata-rata 12 nada
+cocok dengan Python dalam 1 dB untuk parsial 2-3 dan 4-5 dB untuk parsial 4-6 (variasi acak posisi palu).
+
+### Kesetaraan web ↔ Python (qc.py)
+Nebula 60 s: semua pita dalam ±0,9 dB, korelasi L/R sama (0,50). Deep Sleep 5 menit: bass-mid dalam ±0,7 dB,
+presence/air web 3-7 dB lebih gelap (piano & noise papan suara berbeda realisasi acaknya). Shimmer hanya di Python.

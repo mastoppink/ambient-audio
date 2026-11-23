@@ -123,8 +123,15 @@ export function technical(r, data) {
     fx: { decay: sp.reverb_decay, dry: 1 - 0.5 * sp.reverb_mix, wet: 2 * sp.reverb_mix,
       delayFeedback: sp.delay_feedback, delaySeconds: data.delay_seconds, delayMix: data.delay_mix,
       early: sp.early, width: sp.width, motion: sp.motion, shimmer: sp.shimmer,
+      reverbType: sp.reverb_type || "hall", size: sp.size ?? 1,
       send: data.send, reverbHp: data.reverb_hp, predelay: data.reverb_predelay },
     form: fm, lufs: r.master.target_lufs, eq: data.eq, variation: r.variation?.amount ?? 0,
+    warmth: { amount: r.warmth?.amount ?? 0, tape: r.warmth?.tape ?? 0, noise: r.warmth?.noise ?? 0 },
+    cloud: (() => {
+      const c = r.cloud || {}, reg = c.register ?? 0.5;
+      return { level: mix.cloud ?? 0, density: c.density ?? 10, length: c.length ?? 0.25,
+        octaves: reg < 0.34 ? [0, 1, 1] : reg < 0.67 ? [1, 1, 2] : [1, 2, 2] };
+    })(),
   };
 }
 

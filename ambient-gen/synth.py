@@ -232,22 +232,30 @@ _BODY_IR = None
 
 
 def _soundboard_ir():
-    """Respons "tubuh" piano (papan suara + rangka) yang pendek: beberapa resonansi kayu teredam
-    + noise berwarna yang meluruh ~40 ms. Dibuat sekali (tetap untuk semua nada)."""
+    """Respons "tubuh" piano (papan suara + rangka) yang pendek: bunyi langsung senar yang dominan,
+    ditambah resonansi kayu teredam dan noise berwarna yang meluruh ~40 ms (hanya mewarnai).
+    Dibuat sekali (tetap untuk semua nada). Rumus yang sama ada di web/js/piano.js."""
     global _BODY_IR
     if _BODY_IR is None:
         r = np.random.default_rng(424242)
         n = int(0.12 * SR)
         t = np.arange(n) / SR
         ir = np.zeros(n)
-        for fr, q, g in ((95, 12, 0.8), (180, 14, 0.7), (290, 16, 0.6), (480, 18, 0.45), (820, 20, 0.3),
-                         (1350, 22, 0.2), (2400, 25, 0.12)):
-            ir += g * np.sin(2 * np.pi * fr * t) * np.exp(-np.pi * fr / q * t)
+        for fr, q, g in BODY_MODES:
+            ir += BODY_MODE_GAIN * g * np.sin(2 * np.pi * fr * t) * np.exp(-np.pi * fr / q * t)
         noise = sosfilt(butter(2, [150, 4000], btype="band", fs=SR, output="sos"), r.standard_normal(n))
-        ir += 0.6 * noise * np.exp(-t / 0.04)
-        ir[0] += 2.5                                   # bunyi langsung dari senar
+        ir += BODY_NOISE_GAIN * noise * np.exp(-t / 0.04)
+        ir[0] += 1.0                                   # bunyi langsung dari senar (dominan)
         _BODY_IR = ir / np.sqrt((ir ** 2).sum())
     return _BODY_IR
+
+
+# resonansi kayu: (Hz, Q, gain). Gain total kecil: dulu resonansi ~50x lebih kuat dari bunyi langsung
+# sehingga papan suara menjadi low-pass kuat dan parsial atas hilang 20-40 dB (piano terlalu redup).
+BODY_MODES = ((95, 12, 0.8), (180, 14, 0.7), (290, 16, 0.6), (480, 18, 0.45), (820, 20, 0.3),
+              (1350, 22, 0.2), (2400, 25, 0.12))
+BODY_MODE_GAIN = 0.02
+BODY_NOISE_GAIN = 0.03
 
 
 def _piano_note(midi, f, total_n, decay, vel, seed):
@@ -305,7 +313,7 @@ def _piano_note(midi, f, total_n, decay, vel, seed):
 
 # ---------- suara melodi: beberapa timbre ----------
 # disamakan kira-kira ke loudness yang sama (diukur: RMS rangkaian 3 nada)
-TIMBRE_GAIN = {"soft": 1.0, "glass": 0.9, "kalimba": 1.08, "piano": 2.75}
+TIMBRE_GAIN = {"soft": 1.0, "glass": 0.9, "kalimba": 1.08, "piano": 5.56}
 
 def melody_voice(timbre, midi, duration, rng, decay, pan, vel=1.0, offset=0, n=None, attack=1.2):
     """Nada melodi stereo. Semua angka acak diambil di depan -> render per segmen identik.

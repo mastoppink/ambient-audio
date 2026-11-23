@@ -7,12 +7,14 @@
 // diterapkan langsung lewat update() tanpa membangun ulang mesin.
 import { rngFor, midiToHz, Composer, makeShape, Sections } from "./music.js";
 import { makeIRAsync, pinkBufferCached } from "./dsp.js";
+import { ensureWorklets, fdnGainAsync } from "./worklets.js";
+import { pianoBuffer } from "./piano.js";
 
 const CURVE_HZ = 8;                 // resolusi kurva otomasi (titik per detik)
 const DRONE_CHUNK = 240;            // drone dibuat per potongan (detik), disambung crossfade
 const DRONE_XF = 20;
 const TEX_CHUNK = 30;
-const TIMBRE_GAIN = { soft: 1.0, glass: 0.9, kalimba: 1.08, piano: 2.2 };
+const TIMBRE_GAIN = { soft: 1.0, glass: 0.9, kalimba: 1.08, piano: 5.56 };
 const GLIDE = 0.6;                  // detik: transisi saat parameter diubah langsung
 
 function curve(dur, fn) {
@@ -24,8 +26,11 @@ function curve(dur, fn) {
 export class Engine {
   /** Buat mesin dan tunggu reverb siap (tidak memblokir halaman). */
   static async create(ctx, P, seed, opts = {}) {
-    const e = new Engine(ctx, P, seed, opts);
-    await e._loadIR(P.fx, true);
+    // AudioWorklet untuk reverb hall & kehangatan; kalau tidak didukung -> reverb lama, tanpa kehangatan
+    let worklets = false;
+    try { await ensureWorklets(ctx); worklets = true; } catch (err) { console.warn("Spacenight: tanpa AudioWorklet:", err.message); }
+    const e = new Engine(ctx, P, seed, { ...opts, worklets });
+    await e._loadReverb(P.fx, true);
     return e;
   }
 
@@ -34,8 +39,11 @@ export class Engine {
    * @param P parameter teknis (music.technical)
    * @param total durasi lagu (detik) atau null untuk tanpa akhir
    */
-  constructor(ctx, P, seed, { total = null, offline = false, start = null, destination = null } = {}) {
+  constructor(ctx, P, seed, { total = null, offline = false, start = null, destination = null, worklets = false } = {}) {
     this.ctx = ctx; this.P = P; this.seed = seed; this.total = total; this.offline = offline;
+    this.worklets = worklets;
+    this.pending = [];             // nada piano yang sedang dirender (ekspor menunggu semuanya)
+    this.cloudBucket = 0;
     this.destination = destination ?? ctx.destination;
     this.startAt = start;
     this.t0 = start ?? ctx.currentTime + 0.15;
@@ -102,7 +110,21 @@ export class Engine {
     const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 25;
     this.masterGain = ctx.createGain();
     this.out = ctx.createGain();
-    this.master.connect(hp).connect(this.masterGain);
+    let pre = this.master;
+    if (this.worklets) {   // kehangatan pita (saturasi, wow/flutter, desis) + warna nada pita
+      const W = P.warmth, wr = rngFor(this.seed, "warmth");
+      this.warmNode = new AudioWorkletNode(ctx, "warmth", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+        channelCount: 2, channelCountMode: "explicit", processorOptions: { sr: ctx.sampleRate, amount: W.amount, tape: W.tape, noise: W.noise,
+          wowF: wr.uniform(0.4, 0.7), flutF: wr.uniform(5.5, 7.0), wowPh: wr.uniform(0, 6.28), flutPh: wr.uniform(0, 6.28),
+          driftF: [wr.uniform(0.05, 0.12), wr.uniform(0.05, 0.12)], driftPh: [wr.uniform(0, 6.28), wr.uniform(0, 6.28)],
+          noiseSeed: Math.floor(wr() * 2 ** 31) } });
+      this.warmTone = [["lowshelf", 90], ["highshelf", 9000], ["lowpass", 18500]].map(([type, f]) => {
+        const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = 0.7; return b; });
+      this._setWarmTone(W);
+      pre.connect(this.warmNode); pre = this.warmNode;
+      for (const b of this.warmTone) { pre.connect(b); pre = b; }
+    }
+    pre.connect(hp).connect(this.masterGain);
     if (this.offline) this.masterGain.connect(this.out);
     else {   // limiter sederhana untuk pemutaran langsung; ekspor memakai limiter lookahead di dsp.js
       const lim = ctx.createDynamicsCompressor();
@@ -116,12 +138,14 @@ export class Engine {
     this.revIn = ctx.createGain();
     this.revOut = ctx.createGain();       // keluaran semua konvolver (bisa lebih dari satu saat bertukar IR)
     let wet = this.revOut;
-    if (F.motion > 0) wet = this._modDelay(this.revOut, { centre: 0.014, depth: 0.003, rate: 0.07, mix: 0.5 * F.motion });
+    this.hall = F.reverbType === "hall" && this.worklets;
+    // reverb lama: ekor statis -> beri chorus pelan. Hall bergerak dari dalam, tidak perlu.
+    if (F.motion > 0 && !this.hall) wet = this._modDelay(this.revOut, { centre: 0.014, depth: 0.003, rate: 0.07, mix: 0.5 * F.motion });
     this.wetGain = ctx.createGain(); this.wetGain.gain.value = F.wet;
     this._eq(wet, P.eq.reverb).connect(this.wetGain).connect(this.master);
 
     this.layerIn = {}; this.layerLvl = {};
-    for (const k of ["drone", "pad", "melody", "texture"]) {
+    for (const k of ["drone", "pad", "melody", "texture", "cloud"]) {
       const inp = ctx.createGain(), lvl = ctx.createGain();   // lvl: level lapisan, bisa diubah langsung
       inp.connect(lvl);
       let node = this._eq(lvl, P.eq[k]);
@@ -135,7 +159,7 @@ export class Engine {
         node = out;
       }
       node.connect(this.dryBus);
-      const send = ctx.createGain(); send.gain.value = F.send[k]; node.connect(send).connect(this.revIn);
+      const send = ctx.createGain(); send.gain.value = F.send[k] ?? 0.5; node.connect(send).connect(this.revIn);
       this.layerIn[k] = inp; this.layerLvl[k] = lvl;
     }
     // tekstur: pink noise loop -> band-pass bergerak (per kanal) -> amplitudo. Selalu dibangun,
@@ -157,20 +181,65 @@ export class Engine {
     if (this.offline) this.begin();
   }
 
-  async _loadIR(F, first = false) {
-    const key = { decay: F.decay, predelay: F.predelay, hp: F.reverbHp, early: F.early, width: F.width };
-    const buf = await makeIRAsync(this.ctx.sampleRate, this.seed, key);
-    if (this.stopped) return;
-    const conv = this.ctx.createConvolver(); conv.normalize = false; conv.buffer = buf;
-    const g = this.ctx.createGain();
-    this.revIn.connect(conv).connect(g).connect(this.revOut);
-    if (first || this.offline) { g.gain.value = 1; this.conv = { conv, g }; return; }
-    // tukar IR dengan crossfade, supaya tidak ada klik
-    const t = this.ctx.currentTime, old = this.conv;
+  _setWarmTone(W) {
+    const [ls, hs, lp] = this.warmTone, t = this.ctx.currentTime;
+    ls.gain.setTargetAtTime(1.2 * W.amount, t, 0.1);
+    hs.gain.setTargetAtTime(-2.5 * W.amount, t, 0.1);
+    lp.frequency.setTargetAtTime(18500 - 5000 * W.amount, t, 0.1);
+  }
+
+  _erBuffer(early) {
+    // pantulan awal 90 ms (seperti fx.make_ir / FDNReverb): 14 pantulan, lowpass 5 kHz, energi = early^2
+    const sr = this.ctx.sampleRate, n = Math.floor(0.09 * sr), r = rngFor(this.seed, "er");
+    const buf = new AudioBuffer({ numberOfChannels: 2, length: n, sampleRate: sr });
+    const L = buf.getChannelData(0), R = buf.getChannelData(1);
+    for (let i = 0; i < 14; i++) {
+      const d = r.uniform(0.008, 0.08), g = 0.9 * (1 - d / 0.09) * r.uniform(0.5, 1), pan = r.uniform(0.1, 0.9), j = Math.floor(d * sr);
+      L[j] += g * Math.cos((pan * Math.PI) / 2); R[j] += g * Math.sin((pan * Math.PI) / 2);
+    }
+    const a = 1 - Math.exp((-2 * Math.PI * 5000) / sr);
+    let e = 0;
+    for (const x of [L, R]) { let y = 0; for (let i = 0; i < n; i++) { y += a * (x[i] - y); x[i] = y; e += y * y; } }
+    const g = early / Math.sqrt(e || 1);
+    for (const x of [L, R]) for (let i = 0; i < n; i++) x[i] *= g;
+    return buf;
+  }
+
+  /** Bangun reverb (hall FDN atau konvolusi lama) dan tukar dengan crossfade kalau sudah ada. */
+  async _loadReverb(F, first = false) {
+    const ctx = this.ctx, g = ctx.createGain(), chain = { g, fdn: null, nodes: [g] };
+    if (this.hall) {
+      const r = rngFor(this.seed, "fdn");
+      const o = { sr: ctx.sampleRate, decay: F.decay, size: F.size, modDepthMs: 0.15 + 0.9 * F.motion, hfRatio: 0.4, width: F.width,
+        lfoF: Array.from({ length: 8 }, () => r.uniform(0.07, 0.5)), lfoPh: Array.from({ length: 8 }, () => r.uniform(0, 6.28)) };
+      const norm = await fdnGainAsync(o);
+      if (this.stopped) return;
+      const pre = ctx.createDelay(1); pre.delayTime.value = F.predelay;
+      const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = F.reverbHp; hp.Q.value = 0.6;
+      const fdn = new AudioWorkletNode(ctx, "fdn-reverb", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+        channelCount: 2, channelCountMode: "explicit", processorOptions: o });
+      const ng = ctx.createGain(); ng.gain.value = norm;
+      const er = ctx.createConvolver(); er.normalize = false; er.buffer = this._erBuffer(F.early);
+      this.revIn.connect(pre).connect(hp);
+      hp.connect(fdn).connect(ng).connect(g);
+      hp.connect(er).connect(g);
+      chain.fdn = fdn; chain.nodes.push(pre, hp, fdn, ng, er);
+    } else {
+      const key = { decay: F.decay, predelay: F.predelay, hp: F.reverbHp, early: F.early, width: F.width };
+      const buf = await makeIRAsync(ctx.sampleRate, this.seed, key);
+      if (this.stopped) return;
+      const conv = ctx.createConvolver(); conv.normalize = false; conv.buffer = buf;
+      this.revIn.connect(conv).connect(g);
+      chain.nodes.push(conv);
+    }
+    g.connect(this.revOut);
+    if (first || this.offline) { g.gain.value = 1; this.rev = chain; return; }
+    // tukar reverb dengan crossfade, supaya tidak ada klik
+    const t = ctx.currentTime, old = this.rev;
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 1.5);
     old.g.gain.setValueAtTime(old.g.gain.value, t); old.g.gain.linearRampToValueAtTime(0, t + 1.5);
-    setTimeout(() => { old.conv.disconnect(); old.g.disconnect(); }, 2000);
-    this.conv = { conv, g };
+    setTimeout(() => { old.fdn?.port.postMessage("stop"); for (const n of old.nodes) n.disconnect(); }, 2000);
+    this.rev = chain;
   }
 
   // ---------- suara ----------
@@ -185,6 +254,7 @@ export class Engine {
 
   _padVoice(dest, p, midi, songT, dur, rng, { attack, release, subLevel = 0, shapeBright = 0, fadeShape = "sin2", kind = "pad" }) {
     const ctx = this.ctx, t = this.t0 + songT, f0 = midiToHz(midi), k = p.nOsc;
+    if (!this.offline && t + dur <= ctx.currentTime + 0.05) return;   // sudah selesai (mulai "panas")
     const NH = 64, real = new Float32Array(NH), imag = new Float32Array(NH);
     for (let h = 1; h < NH; h++) {
       const saw = (2 / Math.PI) / h;
@@ -225,7 +295,8 @@ export class Engine {
     const fade = fadeShape === "sin" ? (u) => Math.sin((u * Math.PI) / 2) : (u) => Math.sin((u * Math.PI) / 2) ** 2;
     this._curve(env.gain, t, dur, (x) => (x < a ? fade(x / a) : x > dur - r ? fade(Math.max(0, (dur - x) / r)) : 1));
     mg.connect(env).connect(dest);
-    for (const o of oscs) { o.start(t); o.stop(t + dur + 0.05); this._track(o); }
+    // waktu bisa negatif saat lagu dimulai "panas" di awal pemutaran: mulai seketika (0), jangan negatif
+    for (const o of oscs) { o.start(Math.max(0, t)); o.stop(Math.max(0.01, t + dur + 0.05)); this._track(o); }
     if (!this.offline) this.voices.push(v);
   }
 
@@ -236,6 +307,7 @@ export class Engine {
     const out = ctx.createGain(); out.gain.value = vel * (TIMBRE_GAIN[M.timbre] ?? 1);   // level di lapisan
     out.connect(pan).connect(this.layerIn.melody);
     const len = Math.min(decay * 2.5, 40), oscs = [];
+    if (M.timbre === "piano") { this._pianoVoice(midi, t, len, vel, out); return; }
     const partial = (freq, amp, tau, attack) => {
       const o = ctx.createOscillator(); o.frequency.value = freq;
       const g = ctx.createGain(); g.gain.value = 0;
@@ -269,7 +341,60 @@ export class Engine {
       partial(midiToHz(midi) * 2, 0.3, decay * 0.4, M.attack);
       partial(midiToHz(midi) * 3, 0.08, decay * 0.2, M.attack);
     }
-    for (const o of oscs) { o.start(t); o.stop(t + len); this._track(o); }
+    for (const o of oscs) { o.start(Math.max(0, t)); o.stop(Math.max(0.01, t + len)); this._track(o); }
+  }
+
+  /** Piano model fisik: buffer dirender di latar (piano.js), lalu diputar pada waktunya. */
+  _pianoVoice(midi, t, len, vel, out) {
+    out.gain.value = 0;
+    const p = pianoBuffer(this.ctx.sampleRate, midi, vel, this.P.melody.decay, len).then((buf) => {
+      if (this.stopped) return;
+      const ctx = this.ctx, now = this.offline ? 0 : ctx.currentTime + 0.02;
+      if (t + len <= now + 0.1) return;
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const lvl = vel * TIMBRE_GAIN.piano, g = out.gain, start = Math.max(t, now);
+      g.setValueAtTime(0, start); g.linearRampToValueAtTime(lvl, start + 0.003);
+      g.setValueAtTime(lvl, Math.max(start + 0.01, t + len - 0.5)); g.linearRampToValueAtTime(0, t + len);
+      src.connect(out);
+      src.start(Math.max(0, start), Math.max(0, start - t)); src.stop(Math.max(0.01, t + len));
+      this._track(src);
+    });
+    if (this.offline) this.pending.push(p);
+  }
+
+  /** Lapisan awan: butir pendek dari nada chord (lihat synth.cloud_segment). Ember 1 detik per sumber acak. */
+  _scheduleCloud(until) {
+    const C = this.P.cloud, ctx = this.ctx;
+    if (!this.cloudWave) {
+      const re = new Float32Array(4), im = new Float32Array([0, 1, 0.25, 0.08]);
+      this.cloudWave = ctx.createPeriodicWave(re, im, { disableNormalization: true });
+    }
+    const late = this.offline ? -Infinity : ctx.currentTime + 0.05, maxLen = C.length * 2;
+    while (this.cloudBucket < until) {
+      const b = this.cloudBucket++;
+      if (C.level <= 0) continue;
+      const r = rngFor(this.seed, "cloud", b);
+      let dens = C.density * (0.35 + 0.9 * this.shape(b + 0.5));
+      if (this.sections) dens *= 0.6 + 0.4 * Math.min(1.5, Math.max(0, this.sections.at(b).melody));
+      let k = 0, p = Math.exp(-dens), prod = r();       // Poisson (Knuth)
+      while (prod > p) { k++; prod *= r(); }
+      for (let i = 0; i < k; i++) {
+        const t = b + r();
+        let len = 0; for (let j = 0; j < 4; j++) len -= Math.log(1 - r()) * (C.length / 4);   // gamma(4, L/4)
+        len = Math.min(maxLen, Math.max(0.08, len));
+        const notes = this.comp.chordAt(t).notes, oct = C.octaves[Math.floor(r() * C.octaves.length)];
+        const midi = notes[Math.floor(r() * notes.length)] + 12 * oct;
+        const f = midiToHz(midi) * 2 ** (r.uniform(-8, 8) / 1200), amp = r.uniform(0.35, 1), pan = r.uniform(0.1, 0.9);
+        const at = this.t0 + t;
+        if (f > 9000 || at < late) continue;
+        const o = ctx.createOscillator(); o.setPeriodicWave(this.cloudWave); o.frequency.value = f;
+        const g = ctx.createGain(); g.gain.value = 0;
+        this._curve(g.gain, at, len, (x) => amp * Math.sin((Math.PI * x) / len) ** 2);
+        const pn = ctx.createStereoPanner(); pn.pan.value = pan * 2 - 1;
+        o.connect(g).connect(pn).connect(this.layerIn.cloud);
+        o.start(at); o.stop(at + len + 0.02); this._track(o);
+      }
+    }
   }
 
   /** setValueCurveAtTime yang aman: bagian yang sudah lewat dipotong. */
@@ -325,6 +450,7 @@ export class Engine {
       // nada yang waktunya sudah lewat (mulai "panas") dilewati, jangan dibunyikan bersamaan
       if (n.t < end - 8 && this.t0 + n.t >= late) this._melodyVoice(n.midi, n.t, n.vel, rngFor(this.seed, "mel", n.t.toFixed(3), n.midi));
     }
+    this._scheduleCloud(until);
     while (this.texChunk * TEX_CHUNK < until) {
       const st = this.texChunk++ * TEX_CHUNK, dur = Math.min(TEX_CHUNK, end - st) - 1e-3;
       if (dur <= 0) break;
@@ -366,6 +492,7 @@ export class Engine {
     set(this.layerLvl.drone.gain, P.drone.level);
     set(this.layerLvl.melody.gain, P.melody.level);
     set(this.layerLvl.texture.gain, P.texture.level * 0.35);
+    set(this.layerLvl.cloud.gain, P.cloud.level);
     set(this.dryBus.gain, P.fx.dry);
     set(this.wetGain.gain, P.fx.wet);
     set(this.delayFb.gain, P.fx.delayFeedback);
@@ -405,10 +532,14 @@ export class Engine {
         this._recurve(this.texAmp[ch].gain, this.t0 + st, dur, this._texAmpFn(st, ch));
       }
     }
-    const irKey = (F) => [F.decay, F.early, F.width].join("|");
+    const irKey = (F) => [F.decay, F.early, F.width, F.size, F.motion].join("|");
     if (irKey(old.fx) !== irKey(P.fx)) {
       clearTimeout(this._irTimer);
-      this._irTimer = setTimeout(() => this._loadIR(P.fx), 250);
+      this._irTimer = setTimeout(() => this._loadReverb(P.fx), 250);
+    }
+    if (this.warmNode && changed(old.warmth, P.warmth)) {
+      this.warmNode.port.postMessage({ type: "set", params: { ...P.warmth } });
+      this._setWarmTone(P.warmth);
     }
   }
 
@@ -424,7 +555,11 @@ export class Engine {
     if (g.cancelAndHoldAtTime) g.cancelAndHoldAtTime(t); else g.cancelScheduledValues(t);
     // equal-power: jumlah energi lama + baru tetap rata selama crossfade
     g.setValueCurveAtTime(Float32Array.from({ length: 64 }, (_, i) => v * Math.cos(((i / 63) * Math.PI) / 2)), t + 0.01, fade);
-    setTimeout(() => { for (const n of this.nodes) { try { n.stop(); } catch (e) { /* sudah berhenti */ } } this.out.disconnect(); }, fade * 1000 + 100);
+    setTimeout(() => {
+      for (const n of this.nodes) { try { n.stop(); } catch (e) { /* sudah berhenti */ } }
+      this.out.disconnect();
+      this.warmNode?.port.postMessage("stop"); this.rev?.fdn?.port.postMessage("stop");   // akhiri prosesor worklet
+    }, fade * 1000 + 100);
   }
 
   info(songT) {

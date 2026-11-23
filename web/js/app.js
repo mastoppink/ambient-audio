@@ -367,6 +367,7 @@ async function renderWav() {
   const oc = new OAC(2, Math.round(total * SR), SR);
   const eng = await Engine.create(oc, P, state.seed, { total, offline: true, start: 0 });
   eng.scheduleUntil(total);
+  await Promise.all(eng.pending);   // tunggu nada piano selesai dirender sebelum mulai
   const step = Math.max(5, Math.floor(total / 40));
   for (let t = step; t < total; t += step) oc.suspend(t).then(() => { $("#progress").value = t / total; oc.resume(); });
   $("#status").textContent = "Me-render…";
