@@ -22,8 +22,15 @@ def midi_to_hz(m):
 TABLE = 4096
 
 
+MAX_HARM_HZ = 12_000.0   # harmonik di atas ini tidak dibuat (filter yang menentukan kecerahan)
+
+
 def _wavetable(freq, harmonics, kind):
-    """Satu siklus gelombang band-limited (hanya harmonik di bawah Nyquist)."""
+    """Satu siklus gelombang band-limited. harmonics=None -> sebanyak mungkin s/d MAX_HARM_HZ."""
+    if harmonics is None:
+        harmonics = max(1, int(MAX_HARM_HZ / freq))
+        if kind != "saw":
+            harmonics = harmonics // 2 + 1
     ph = np.arange(TABLE) / TABLE * 2 * np.pi
     w = np.zeros(TABLE + 1)
     if kind == "saw":
@@ -31,16 +38,19 @@ def _wavetable(freq, harmonics, kind):
     else:
         ks, amp, scale = range(1, harmonics * 2, 2), (lambda i, k: (-1) ** i / k**2), 8 / np.pi**2
     for i, k in enumerate(ks):
-        if k * freq >= SR / 2:
+        if k * freq >= min(SR / 2, MAX_HARM_HZ * 1.01) or k > TABLE // 2 - 1:
             break
         w[:TABLE] += amp(i, k) * np.sin(k * ph)
     w[TABLE] = w[0]
     return w * scale
 
 
-def _read_table(table, freq, idx, phase0):
-    """idx = indeks sampel absolut (array int)."""
-    pos = (phase0 / (2 * np.pi) + (freq / SR) * idx) % 1.0 * TABLE
+def _read_table(table, freq, idx, phase0, extra_cycles=None):
+    """idx = indeks sampel absolut (array int). extra_cycles: deviasi fase (dalam siklus)."""
+    cyc = phase0 / (2 * np.pi) + (freq / SR) * idx
+    if extra_cycles is not None:
+        cyc = cyc + extra_cycles
+    pos = cyc % 1.0 * TABLE
     i = pos.astype(np.int64)
     frac = pos - i
     return table[i] * (1 - frac) + table[i + 1] * frac
@@ -123,6 +133,16 @@ def _block_times(start, length):
     return (start + np.arange(0, length, BLOCK)) / SR
 
 
+def drift_cycles(t, freq, cents, periods, phases):
+    """Pitch drift analitik: deviasi nada d(t) = cents * rata-rata sinus lambat.
+    Fase = integral frekuensi -> rumus tertutup, jadi render per segmen tetap identik."""
+    k = freq * np.log(2) / 1200 * cents / len(periods)
+    out = np.zeros_like(t)
+    for P, ph in zip(periods, phases):
+        out += -k * P / (2 * np.pi) * (np.cos(2 * np.pi * t / P + ph) - np.cos(ph))
+    return out
+
+
 # ---------- suara ----------
 def pad_voice(midi, duration, rng, p, offset=0, n=None, t0=0.0, shape=None):
     """Nada pad stereo -> (n, 2), sampel [offset, offset+n) dari suara sepanjang `duration`.
@@ -139,17 +159,29 @@ def pad_voice(midi, duration, rng, p, offset=0, n=None, t0=0.0, shape=None):
     for i in range(k):
         spread = (i / (k - 1) * 2 - 1) if k > 1 else 0.0
         cents = spread * p["detune_cents"] + rng.uniform(-1.5, 1.5)
-        oscs.append((spread, f0 * 2 ** (cents / 1200), rng.uniform(0, 2 * np.pi)))
+        oscs.append(dict(spread=spread, f=f0 * 2 ** (cents / 1200), ph=rng.uniform(0, 2 * np.pi),
+                         dper=rng.uniform(5, 23, 3), dph=rng.uniform(0, 2 * np.pi, 3),
+                         mper=rng.uniform(25, 70), mph=rng.uniform(0, 2 * np.pi)))
     sub_ph = rng.uniform(0, 2 * np.pi)
     lfo_phase = rng.uniform(0, 2 * np.pi)
 
     start, idx = _span(offset, n, total_n)
+    t = idx / SR
     L = np.zeros(len(idx))
     R = np.zeros(len(idx))
-    for spread, f, ph in oscs:
-        x = p["saw_mix"] * _read_table(_wavetable(f, p["harmonics"], "saw"), f, idx, ph)
-        x += (1 - p["saw_mix"]) * _read_table(_wavetable(f, p["harmonics"] // 2, "tri"), f, idx, ph)
-        pan = 0.5 + p.get("stereo_spread", 0.35) * spread
+    drift = p.get("drift_cents", 0.0)
+    wob = p.get("timbre_wobble", 0.0)
+    harm = p.get("harmonics")
+    for o in oscs:
+        f = o["f"]
+        ex = drift_cycles(t, f, drift, o["dper"], o["dph"]) if drift else None
+        saw = _read_table(_wavetable(f, harm, "saw"), f, idx, o["ph"], ex)
+        tri = _read_table(_wavetable(f, harm // 2 if harm else None, "tri"), f, idx, o["ph"], ex)
+        mix = p["saw_mix"]
+        if wob:   # kadar saw/triangle "bernapas" pelan per oscillator
+            mix = np.clip(mix + wob * np.sin(2 * np.pi * t / o["mper"] + o["mph"]), 0, 1)
+        x = mix * saw + (1 - mix) * tri
+        pan = 0.5 + p.get("stereo_spread", 0.35) * o["spread"]
         L += x * np.cos(pan * np.pi / 2)
         R += x * np.sin(pan * np.pi / 2)
     sub = p["sub_level"] * sine_at(f0 / 2, idx, sub_ph) * np.sqrt(0.5) * k / 2
@@ -164,7 +196,7 @@ def pad_voice(midi, duration, rng, p, offset=0, n=None, t0=0.0, shape=None):
     for ch, x in enumerate((L, R)):
         m = lfo_at(tb, p["lfo_period"], lfo_phase + ch * 0.4)
         cutoff = p["cutoff_min"] * (p["cutoff_max"] / p["cutoff_min"]) ** m * bright
-        chans.append(moving_filter(x, cutoff))
+        chans.append(moving_filter(x, cutoff, q=p.get("resonance", 0.7071)))
     out = np.stack(chans, axis=1) * envelope_at(idx, total_n, p["attack"], p["release"])[:, None]
     out = out[offset - start:]
     return _fit(out, n)

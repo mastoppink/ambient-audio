@@ -63,6 +63,7 @@ FX = dict(
     delay_mix=0.25,       # hanya untuk melodi
     target_lufs=-16.0,
     ceiling_db=-1.0,
+    early=0.5, width=1.0, motion=0.5, shimmer=0.0,
 )
 
 # --- Milestone 3.5 ---
@@ -72,3 +73,18 @@ MIX = dict(dry=0.75, wet=1.0)
 # --- Milestone 4 ---
 SHAPE = None              # fungsi kurva intensitas t -> 0..1 (form.py), None = datar
 SEGMENT_SECONDS = 30.0    # unit render paralel
+
+# --- Optimasi audio: EQ per lapisan (jenis, Hz, gain dB, Q) ---
+EQ = {
+    "drone": [("hp", 28, 0, 0.7),
+              ("lowshelf", 170, -7.0, 0.7)],   # drone terasa, tapi tidak mendominasi
+    "pad": [("hp", 110, 0, 0.6),            # fundamental pad tidak perlu turun ke wilayah drone
+            ("peak", 260, -4.5, 0.8),       # kurangi "keruh"
+            ("peak", 1000, 2.5, 0.6)],      # beri "badan" pada pad
+    "melody": [("hp", 200, 0, 0.7)],
+    "texture": [],
+    "reverb": [("hp", 220, 0, 0.6),         # ekor reverb bersih dari bass
+               ("lowshelf", 300, -2.0, 0.7),
+               ("peak", 350, -3.0, 0.9)],
+    "master": [("hp", 25, 0, 0.7)],
+}

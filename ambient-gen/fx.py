@@ -8,22 +8,48 @@ import config
 SR = config.SAMPLE_RATE
 
 
-def make_ir(decay, predelay, rng, hp=180.0):
-    """IR reverb sintetis: noise stereo dengan decay eksponensial yang makin gelap.
+def make_ir(decay, predelay, rng, hp=180.0, early=0.5, width=1.0):
+    """IR reverb sintetis.
 
-    Freeverb bawaan pedalboard tidak bisa mencapai decay 8-15 detik dengan halus,
-    jadi dipakai konvolusi dengan IR buatan sendiri.
+    - Pantulan awal (early reflections): 14 pantulan 8-80 ms, beda posisi L/R -> kesan ruang.
+    - Ekor difus: noise dengan decay berbeda per pita frekuensi (bass sedikit lebih pendek supaya tidak menumpuk,
+      treble jauh lebih cepat, seperti ruang nyata), muncul bertahap (build-up 120 ms).
+    - Kanal L/R tidak berkorelasi -> stereo lebar. width < 1 mempersempit.
     """
-    n = int((decay * 1.2 + predelay) * SR)
+    n = int((decay * 1.25 + predelay) * SR)
     t = np.arange(n) / SR
-    ir = rng.standard_normal((n, 2))
-    # frekuensi tinggi meluruh lebih cepat: campur noise terang (decay pendek) + gelap
-    dark = sosfilt(butter(2, 2500, fs=SR, output="sos"), ir, axis=0)
-    env_long = 10 ** (-3 * t / decay)          # -60 dB pada t = decay
-    env_short = 10 ** (-3 * t / (decay * 0.35))
-    ir = dark * env_long[:, None] + 0.4 * (ir - dark) * env_short[:, None]
-    fade_in = int(0.08 * SR)                    # onset lembut, tanpa "klik" awal
-    ir[:fade_in] *= np.linspace(0, 1, fade_in)[:, None]
+    noise = rng.standard_normal((n, 2))
+    # pecah noise jadi 4 pita, masing-masing dengan waktu decay sendiri
+    edges = [(None, 300, 0.9), (300, 2000, 1.0), (2000, 6000, 0.55), (6000, None, 0.28)]
+    tail = np.zeros_like(noise)
+    for lo, hi, k in edges:
+        if lo is None:
+            sos = butter(4, hi, btype="low", fs=SR, output="sos")
+        elif hi is None:
+            sos = butter(4, lo, btype="high", fs=SR, output="sos")
+        else:
+            sos = butter(2, [lo, hi], btype="band", fs=SR, output="sos")
+        env = 10 ** (-3 * t / (decay * k))       # -60 dB pada t = decay*k
+        tail += sosfilt(sos, noise, axis=0) * env[:, None]
+    build = int(0.12 * SR)
+    tail[:build] *= (np.sin(np.linspace(0, np.pi / 2, build)) ** 2)[:, None]
+    tail /= np.sqrt((tail**2).sum(axis=0, keepdims=True))
+    # pantulan awal
+    er = np.zeros((int(0.09 * SR), 2))
+    for i in range(14):
+        d = rng.uniform(0.008, 0.08)
+        g = 0.9 * (1 - d / 0.09) * rng.uniform(0.5, 1.0)
+        pan = rng.uniform(0.1, 0.9)
+        j = int(d * SR)
+        er[j, 0] += g * np.cos(pan * np.pi / 2)
+        er[j, 1] += g * np.sin(pan * np.pi / 2)
+    er = sosfilt(butter(1, 5000, fs=SR, output="sos"), er, axis=0)
+    er *= early / (np.sqrt((er**2).sum()) + 1e-12)
+    ir = tail.copy()
+    ir[: len(er)] += er
+    if width < 1.0:   # campur sebagian kanal -> lebih sempit
+        m = ir.mean(axis=1, keepdims=True)
+        ir = m + (ir - m) * width
     ir = np.vstack([np.zeros((int(predelay * SR), 2)), ir])
     ir = sosfilt(butter(2, hp, btype="high", fs=SR, output="sos"), ir, axis=0)
     return ir / np.sqrt((ir**2).sum(axis=0, keepdims=True))
@@ -175,3 +201,81 @@ class StreamLimiter:
     def flush(self):
         body, self.buf = self.buf, np.zeros((0, 2))
         return self._process(body, np.zeros((0, 2))) if len(body) else body
+
+
+# ---------- EQ (biquad RBJ) per lapisan, streaming ----------
+def _rbj(kind, f, gain_db=0.0, q=0.7071):
+    A = 10 ** (gain_db / 40)
+    w0 = 2 * np.pi * f / SR
+    cw, sw = np.cos(w0), np.sin(w0)
+    al = sw / (2 * q)
+    if kind == "hp":
+        b = [(1 + cw) / 2, -(1 + cw), (1 + cw) / 2]
+        a = [1 + al, -2 * cw, 1 - al]
+    elif kind == "lp":
+        b = [(1 - cw) / 2, 1 - cw, (1 - cw) / 2]
+        a = [1 + al, -2 * cw, 1 - al]
+    elif kind == "peak":
+        b = [1 + al * A, -2 * cw, 1 - al * A]
+        a = [1 + al / A, -2 * cw, 1 - al / A]
+    elif kind in ("lowshelf", "highshelf"):
+        s = 2 * np.sqrt(A) * al
+        if kind == "lowshelf":
+            b = [A * ((A + 1) - (A - 1) * cw + s), 2 * A * ((A - 1) - (A + 1) * cw), A * ((A + 1) - (A - 1) * cw - s)]
+            a = [(A + 1) + (A - 1) * cw + s, -2 * ((A - 1) + (A + 1) * cw), (A + 1) + (A - 1) * cw - s]
+        else:
+            b = [A * ((A + 1) + (A - 1) * cw + s), -2 * A * ((A - 1) + (A + 1) * cw), A * ((A + 1) + (A - 1) * cw - s)]
+            a = [(A + 1) - (A - 1) * cw + s, 2 * ((A - 1) - (A + 1) * cw), (A + 1) - (A - 1) * cw - s]
+    else:
+        raise ValueError(kind)
+    b, a = np.array(b) / a[0], np.array(a) / a[0]
+    return np.concatenate([b, a])
+
+
+class StreamEQ:
+    """bands: daftar (jenis, frekuensi, gain_db, q). Jenis: hp, lp, peak, lowshelf, highshelf."""
+
+    def __init__(self, bands):
+        self.sos = np.array([_rbj(k, f, g, q) for k, f, g, q in bands]) if bands else None
+        self.zi = np.zeros((len(bands), 2, 2)) if bands else None
+
+    def __call__(self, x):
+        if self.sos is None:
+            return x
+        y, self.zi = sosfilt(self.sos, x, axis=0, zi=self.zi)
+        return y
+
+
+class OctaveUp:
+    """Pitch shifter delay-line (2 tap bersilang, jendela sin^2), rasio 2 = +12 semitone.
+    Streaming dan deterministik. Kualitasnya sederhana, tapi cukup untuk shimmer di dalam reverb."""
+
+    def __init__(self, ratio=2.0, window=0.06):
+        self.r = ratio
+        self.D = int(window * SR)
+        self.hist = np.zeros((self.D + 2, 2))
+        self.n0 = 0
+
+    def __call__(self, x):
+        n = len(x)
+        buf = np.vstack([self.hist, x])
+        H = len(self.hist)
+        idx = self.n0 + np.arange(n)
+        y = np.zeros_like(x)
+        for k in (0.0, 0.5):
+            ph = ((self.r - 1) * idx / self.D + k) % 1.0
+            d = (1 - ph) * self.D                 # jarak baca ke belakang
+            pos = H + np.arange(n) - d - 1
+            i = np.floor(pos).astype(int)
+            fr = (pos - i)[:, None]
+            w = np.sin(np.pi * ph) ** 2
+            y += (buf[i] * (1 - fr) + buf[i + 1] * fr) * w[:, None]
+        self.hist = buf[-H:]
+        self.n0 += n
+        return y
+
+
+def stream_wet_chorus():
+    """Modulasi pelan pada ekor reverb (konvolusi sendiri statis) -> ekor terasa hidup."""
+    return StreamBoard(Pedalboard([Chorus(rate_hz=0.07, depth=0.25, centre_delay_ms=14,
+                                          feedback=0.0, mix=0.5)]))

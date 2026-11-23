@@ -62,11 +62,12 @@ def main():
                                         form_total=max(full, total), stems=a.stems,
                                         workers=a.workers)
         qc_text = pipeline.save_meta(stem, events, text, lufs, mp3=not a.no_mp3, flac=a.flac,
-                                     qc=not a.no_qc)
+                                     qc=not a.no_qc, profile=r["qc"]["profile"])
         if qc_text:
             print("\n".join("  " + l for l in qc_text.splitlines()[3:] if "[CEK" in l or "[MASALAH" in l)
                   or "  QC: semua OK")
-        print(f"  -> {stem}.wav/.mp3/.toml  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
+        ext = "wav" + ("/.mp3" if not a.no_mp3 else "") + ("/.flac" if a.flac else "")
+        print(f"  -> {stem}.{ext}/.toml  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
 
 
 if __name__ == "__main__":

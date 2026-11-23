@@ -34,6 +34,10 @@ def _event_audio(e, seed, offset, n):
     params, level = _layer(e.layer)
     if level <= 0:
         return None
+    if e.layer == "drone":
+        # sub hanya pada nada drone terendah
+        params = dict(params, sub_level=getattr(config, "DRONE_SUB", 0.0)
+                      if e.midi == min(config.DRONE_NOTES) else 0.0)
     if e.layer == "pad":
         # crossfade: release chord lama berjalan selama chord baru masuk
         params = dict(params, attack=config.CHORD_OVERLAP, release=config.CHORD_OVERLAP)

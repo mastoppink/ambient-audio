@@ -8,19 +8,20 @@ tonic = "D"
 mode = "aeolian"
 
 [mix]
-drone = 0.9
+drone = 0.65
 pad = 0.5
 melody = 0.12
 texture = 0.025
 
 [pad]
-brightness = [0.2, 0.35]   # rentang: tiap seed sedikit beda warna
+brightness = [0.28, 0.42]  # rentang: tiap seed sedikit beda warna
 width = 0.6
 movement = 0.25
 chord_seconds = [80, 130]
 
 [drone]
 brightness = 0.15
+sub = 0.3
 
 [melody]
 density = 0.2
@@ -37,3 +38,6 @@ delay_feedback = 0.25
 
 [master]
 target_lufs = -18.0   # lebih pelan untuk tidur
+
+[qc]
+profile = "sleep"     # target spektrum lebih gelap

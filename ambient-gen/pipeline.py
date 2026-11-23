@@ -51,8 +51,17 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     p = config.FX
     chorus, delay = fx.stream_chorus(), fx.stream_delay(p)
     ir = fx.make_ir(p["reverb_decay"], p["reverb_predelay"], np.random.default_rng([seed, 5]),
-                    p["reverb_hp"])
-    reverb, hpf = fx.StreamReverb(ir), fx.StreamHighpass(30.0)
+                    p["reverb_hp"], early=p["early"], width=p["width"])
+    reverb = fx.StreamReverb(ir)
+    wet_chorus = fx.stream_wet_chorus() if p["motion"] > 0 else None
+    shimmer = None
+    if p["shimmer"] > 0:
+        # jalur shimmer: kirim -> naik 1 oktaf -> buang bass -> reverb yang lebih panjang & tanpa ER
+        ir2 = fx.make_ir(p["reverb_decay"] * 1.4, 0.05, np.random.default_rng([seed, 8]), 600.0,
+                         early=0.0)
+        shimmer = (fx.OctaveUp(), fx.StreamEQ([("hp", 700, 0, 0.7), ("lp", 9000, 0, 0.7)]),
+                   fx.StreamReverb(ir2))
+    eq = {k: fx.StreamEQ(v) for k, v in config.EQ.items()}
     meter = LoudnessMeter(SR)
     n_fade = int(min(fade_out, total / 4) * SR)
 
@@ -65,13 +74,19 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
         for i, layers in pool.imap(_work, range(n_seg)):
             for k, f in stem_files.items():
                 f.write(layers[k])
-            layers = {k: v.astype(np.float64) for k, v in layers.items()}
+            layers = {k: eq[k](v.astype(np.float64)) for k, v in layers.items()}
             layers["pad"] = chorus(layers["pad"])
             layers["melody"] = delay(layers["melody"])
             dry = sum(layers.values())
             send = sum(layers[k] * p["send"][k] for k in layers)
-            mix = dry * config.MIX["dry"] + reverb(send) * config.MIX["wet"]
-            mix = hpf(mix)
+            wet = reverb(send)
+            if wet_chorus:
+                wet = wet * (1 - p["motion"]) + wet_chorus(wet) * p["motion"]
+            if shimmer:
+                up, hp, rv = shimmer
+                wet = wet + rv(hp(up(send))) * p["shimmer"] * 0.6
+            mix = dry * config.MIX["dry"] + eq["reverb"](wet) * config.MIX["wet"]
+            mix = eq["master"](mix)
             # fade-out di akhir lagu
             s0 = i * seg
             t_idx = s0 + np.arange(len(mix))
@@ -110,7 +125,7 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     return events, lufs
 
 
-def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True):
+def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True, profile="default"):
     with open(f"{stem}.toml", "w") as f:
         f.write(f"# loudness terukur: {lufs:.1f} LUFS\n" + resolved_toml)
     with open(f"{stem}.events.json", "w") as f:
@@ -126,7 +141,7 @@ def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True):
     if qc:
         import qc as qc_mod
         r = qc_mod.analyze(f"{stem}.wav")
-        text = qc_mod.report(r)
+        text = qc_mod.report(r, profile=profile)
         with open(f"{stem}.qc.txt", "w") as f:
             f.write(text + "\n")
         with open(f"{stem}.qc.json", "w") as f:

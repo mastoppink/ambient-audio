@@ -33,9 +33,15 @@ BANDS = [  # (nama, lo, hi, keterangan)
     ("air", 6000, 16000, "air / desis"),
 ]
 # Target relatif terhadap pink (dB), rentang wajar untuk ambient gelap-luas.
-# Ini pedoman praktis (heuristik), bukan standar resmi.
-TARGET = {"sub": (-20, 0), "bass": (-3, 6), "lowmid": (-3, 5), "mid": (-4, 3),
-          "presence": (-15, -3), "air": (-32, -12)}
+# Ini pedoman praktis (heuristik), bukan standar resmi. Profil "sleep" sengaja lebih gelap:
+# treble yang lembut membuat telinga tidak lelah dan tidak memancing perhatian.
+PROFILES = {
+    "default": {"sub": (-20, 0), "bass": (-3, 6), "lowmid": (-3, 5), "mid": (-4, 3),
+                "presence": (-15, -3), "air": (-40, -12)},
+    "sleep":   {"sub": (-20, 0), "bass": (-3, 6), "lowmid": (-3, 5), "mid": (-5, 2),
+                "presence": (-26, -10), "air": (-55, -25)},
+}
+TARGET = PROFILES["default"]
 
 
 def third_octave(freqs, psd):
@@ -80,12 +86,13 @@ def analyze(path, block_s=10.0):
             centroid.append(c)
     # Energi per pita 1/3 oktaf (pink noise = datar), dinormalkan ke rata-rata 100-2000 Hz.
     centers, levels = third_octave(freqs, psd / frames)
-    norm = levels[(centers >= 100) & (centers <= 2000)].mean()
+    norm = 10 * np.log10(np.mean(10 ** (levels[(centers >= 100) & (centers <= 2000)] / 10)))
     levels = levels - norm
     band_rel = {}
     for name, lo, hi, _ in BANDS:
         m_ = (centers >= lo) & (centers < hi)
-        band_rel[name] = round(float(levels[m_].mean()), 1)
+        # rata-rata ENERGI (bukan rata-rata dB): nada murni + celah kosong tidak boleh saling menghapus
+        band_rel[name] = round(float(10 * np.log10(np.mean(10 ** (levels[m_] / 10)))), 1)
     st = meter.short_term()
     return {
         "file": path,
@@ -105,7 +112,7 @@ def analyze(path, block_s=10.0):
     }
 
 
-def judge(r):
+def judge(r, profile="default"):
     """Daftar (status, pesan). status: OK / CEK / MASALAH."""
     out = []
     tp = r["true_peak_dbtp"]
@@ -116,7 +123,7 @@ def judge(r):
     out.append(("OK" if ml >= -3 else "CEK", f"kehilangan saat mono {ml} dB (aman >= -3)"))
     for name, lo, hi, desc in BANDS:
         v = r["bands_vs_pink_db"][name]
-        a, b = TARGET[name]
+        a, b = PROFILES.get(profile, TARGET)[name]
         if v > b:
             s, hint = "CEK", "terlalu banyak"
         elif v < a:
@@ -127,12 +134,12 @@ def judge(r):
     return out
 
 
-def report(r, other=None):
-    lines = [f"QC: {r['file']}  ({r['duration_min']} menit)",
+def report(r, other=None, profile="default"):
+    lines = [f"QC: {r['file']}  ({r['duration_min']} menit, profil {profile})",
              f"  loudness {r['lufs']} LUFS, LRA {r['lra']} LU, short-term maks {r['short_term_max']} LUFS",
              f"  true peak {r['true_peak_dbtp']} dBTP, korelasi L/R {r['lr_correlation']}, "
              f"centroid {r['centroid_hz_median']:.0f} Hz ({r['centroid_hz_range'][0]}-{r['centroid_hz_range'][1]})"]
-    for s, msg in judge(r):
+    for s, msg in judge(r, profile):
         lines.append(f"  [{s:7s}] {msg}")
     if other:
         lines.append(f"\nBandingkan dengan {other['file']}:")
@@ -177,14 +184,21 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("wav")
     ap.add_argument("--compare", help="render pembanding (mis. versi sebelum perubahan)")
+    ap.add_argument("--profile", default=None, help="default / sleep (default: dari .toml di samping file)")
     a = ap.parse_args()
+    profile = a.profile
+    if profile is None:   # ambil dari preset final yang disimpan di samping audio
+        import os, tomllib
+        t = a.wav[:-4] + ".toml"
+        profile = tomllib.load(open(t, "rb")).get("qc", {}).get("profile", "default") \
+            if os.path.exists(t) else "default"
     r = analyze(a.wav)
     other = analyze(a.compare) if a.compare else None
     stem = a.wav[:-4]
     with open(stem + ".qc.json", "w") as f:
         json.dump({k: v for k, v in r.items() if not k.startswith("_")}, f, indent=1)
     plot(r, stem + ".qc.png", other)
-    print(report(r, other))
+    print(report(r, other, profile))
 
 
 if __name__ == "__main__":

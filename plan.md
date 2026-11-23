@@ -77,6 +77,6 @@ ambient-gen/
 3. ✅ Ketiga lapisan + tekstur + FX, 10 menit
 3.5. ✅ Preset TOML, kontrol makro, mode, variasi per seed
 4. ✅ Render blok paralel + master streaming + bentuk makro, 60 menit (~3 menit render)
-5. Optimasi kualitas audio (sedang dibahas)
+5. ✅ Optimasi kualitas audio: laporan QC, pad analog, EQ per lapisan, reverb baru
 
 _Video dikeluarkan dari rencana untuk saat ini; bisa ditambahkan lagi nanti._

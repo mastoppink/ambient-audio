@@ -8,16 +8,20 @@ tonic = ["E", "A"]   # daftar pilihan: seed memilih salah satu
 mode = "dorian"
 
 [mix]
-drone = 0.7
+drone = 0.75
 pad = 0.6
 melody = 0.3
 texture = 0.035
 
 [pad]
-brightness = 0.45
+brightness = 0.6
 width = 0.45
 movement = 0.75
 chord_seconds = [45, 75]
+
+[drone]
+brightness = 0.35
+sub = 0.3
 
 [melody]
 density = [0.7, 0.85]

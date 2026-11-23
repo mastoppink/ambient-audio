@@ -20,12 +20,16 @@ File `.toml` itu bisa dipakai lagi sebagai preset dan menghasilkan audio yang id
 | `[key]` | `tonic`, `mode` | mode: ionian, dorian, phrygian, lydian, mixolydian, aeolian |
 | `[mix]` | `drone`, `pad`, `melody`, `texture` | level tiap lapisan (0 = mati) |
 | `[pad]` | `brightness`, `width`, `movement` | 0..1: gelap→terang, sempit→lebar, statis→bergerak |
+| | `life` | 0..1: kaku/digital → "analog" (pitch drift + timbre bernapas) |
 | | `chord_seconds`, `chord_weights` | durasi tiap chord; bobot chord I, II, iii, V, vi, vii (0 = tidak dipakai) |
-| `[drone]`, `[texture]` | `brightness` | 0..1 |
+| `[drone]` | `brightness`, `sub` | 0..1; sub = sinus satu oktaf di bawah drone terendah |
+| `[texture]` | `brightness` | 0..1 |
 | `[melody]` | `density`, `decay`, `register` | 0..1 jarang→sering; detik; 0..1 rendah→tinggi |
 | `[space]` | `reverb_decay`, `reverb_mix`, `delay_feedback` | detik; 0..1; 0..0.6 |
+| | `early`, `width`, `motion`, `shimmer` | 0..1: pantulan awal, lebar stereo reverb, modulasi ekor, kilau oktaf atas |
 | `[form]` | `amount`, `period_min`, `intro_min`, `outro_min`, `bright` | bentuk makro: seberapa kuat & seberapa lambat intensitas naik-turun |
 | `[master]` | `target_lufs` | mis. -16 (umum) atau -18 (tidur) |
+| `[qc]` | `profile` | `default` atau `sleep` (target spektrum lebih gelap) |
 
 Variasi: angka boleh ditulis `[min, max]` dan daftar teks `["E", "A"]`; nilainya dipilih per seed.
 Seed yang sama selalu memberi hasil yang sama, dan preview adalah awal yang persis dari versi panjangnya.
@@ -77,3 +81,31 @@ python generate.py presets/nebula.toml --duration 75 --workers 2 --no-mp3
 - Bentuk makro (`form.py`): kurva intensitas 0..1 (intro, dua gelombang lambat, outro) yang membuka
   filter pad, menambah kepadatan melodi, dan menaikkan tekstur saat intens. Level keseluruhan tetap rata.
 - Disk: WAV 24-bit 60 menit ≈ 1 GB (+ ~1,4 GB sementara selama render), MP3 192k ≈ 86 MB.
+
+## Milestone 5: optimasi kualitas audio
+```bash
+python qc.py out/x.wav                       # laporan kualitas (+ .qc.png)
+python qc.py out/baru.wav --compare out/lama.wav
+python generate.py presets/nebula.toml --flac   # juga simpan FLAC
+```
+Setiap render otomatis membuat `.qc.txt/.qc.json/.qc.png`: loudness & LRA, true peak, kecocokan mono,
+dan keseimbangan spektrum per pita (1/3 oktaf, relatif pink) dibanding target per profil.
+
+Perubahan suara (diukur dengan qc.py, preview 4 menit):
+- Pad: harmonik sampai ~12 kHz (dulu dipotong di ~2,6 kHz), pitch drift analog per oscillator,
+  timbre saw/triangle bernapas, sedikit resonansi filter (`pad.life`).
+- Sub dipindah dari tiap nada pad ke drone terendah saja; drone diberi low-shelf.
+- EQ per lapisan (`config.EQ`): pad dibersihkan di 260 Hz dan diberi badan di 1 kHz, reverb tanpa bass.
+- Reverb: pantulan awal, decay berbeda per pita frekuensi, ekor bermodulasi, opsi shimmer.
+- Dither TPDF saat menulis 24-bit.
+
+| Nebula, relatif pink | sebelum | sesudah |
+|---|---|---|
+| sub 20-60 Hz | -65 | -14 |
+| bass 60-150 | +5 | +5 |
+| low-mid 150-400 | +4 | +3 |
+| mid 400-2k | -10 | -3 |
+| presence 2-6k | -25 | -13 |
+| air 6-16k | -58 | -35 |
+
+Render sekitar 1,7x lebih lambat dari milestone 4 (harmonik & drift lebih banyak): 60 menit ≈ 5 menit di 4 core.

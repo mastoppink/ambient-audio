@@ -35,10 +35,11 @@ DEFAULTS = {
         "brightness": 0.55,          # 0 gelap .. 1 terang (cutoff + kadar saw)
         "width": 0.5,                # 0 sempit .. 1 lebar (detune + stereo)
         "movement": 0.5,             # 0 statis .. 1 bergerak (kecepatan LFO filter)
+        "life": 0.5,                 # 0 kaku/digital .. 1 "analog" (pitch drift + timbre bernapas)
         "chord_seconds": [50, 80],
         "chord_weights": {},         # mis. {II = 4.0, vii = 0}
     },
-    "drone": {"brightness": 0.3},
+    "drone": {"brightness": 0.3, "sub": 0.3},   # sub: sinus 1 oktaf di bawah drone (0 = mati)
     "melody": {
         "density": 0.67,             # 0 sangat jarang .. 1 cukup sering
         "decay": 9.0,
@@ -49,6 +50,10 @@ DEFAULTS = {
         "reverb_decay": 11.0,        # detik
         "reverb_mix": 0.5,           # 0 kering .. 1 sangat basah
         "delay_feedback": 0.3,
+        "early": 0.5,                # 0..1 pantulan awal (kesan "ruangan")
+        "width": 1.0,                # 0..1 lebar stereo reverb
+        "motion": 0.5,               # 0..1 modulasi pelan pada ekor reverb
+        "shimmer": 0.0,              # 0..1 kilau oktaf atas di reverb (0 = mati)
     },
     "form": {
         "amount": 0.6,               # 0 datar .. 1 naik-turun intensitas sangat terasa
@@ -58,6 +63,7 @@ DEFAULTS = {
         "bright": 0.8,               # seberapa jauh intensitas membuka filter pad (oktaf)
     },
     "master": {"target_lufs": -16.0},
+    "qc": {"profile": "default"},    # default / sleep
 }
 RANGE_KEYS = {("pad", "chord_seconds"), ("form", "period_min")}
 
@@ -147,12 +153,15 @@ def apply(r):
     mix = r["mix"]
     pad = r["pad"]
     b, w, mv = pad["brightness"], pad["width"], pad["movement"]
-    cut_max = _lerp_log(900, 4500, b)
+    cut_max = _lerp_log(1100, 7000, b)
     config.PAD = dict(config.PAD,
                       cutoff_max=cut_max, cutoff_min=cut_max * 0.23,
                       saw_mix=0.25 + 0.5 * b,
                       detune_cents=3 + 12 * w, stereo_spread=0.1 + 0.5 * w,
-                      lfo_period=_lerp_log(120, 20, mv))
+                      lfo_period=_lerp_log(120, 20, mv),
+                      harmonics=None, sub_level=0.0,      # sub hanya di drone (cegah bass menumpuk)
+                      drift_cents=1 + 5 * pad["life"], timbre_wobble=0.25 * pad["life"],
+                      resonance=0.9 + 0.4 * b)
     config.PAD_LEVEL = mix["pad"]
     config.CHORD_SECONDS = tuple(pad["chord_seconds"])
     config.CHORD_OVERLAP = min(12.0, config.CHORD_SECONDS[0] * 0.3)
@@ -160,7 +169,9 @@ def apply(r):
 
     db = r["drone"]["brightness"]
     dmax = _lerp_log(300, 1500, db)
-    config.DRONE = dict(config.DRONE, cutoff_max=dmax, cutoff_min=dmax * 0.28)
+    config.DRONE = dict(config.DRONE, cutoff_max=dmax, cutoff_min=dmax * 0.28, harmonics=None,
+                        drift_cents=1.5, timbre_wobble=0.1)
+    config.DRONE_SUB = 0.6 * r["drone"]["sub"]
     config.DRONE_LEVEL = mix["drone"]
 
     m = r["melody"]
@@ -177,7 +188,8 @@ def apply(r):
 
     sp = r["space"]
     config.FX = dict(config.FX, reverb_decay=sp["reverb_decay"], delay_feedback=sp["delay_feedback"],
-                     target_lufs=r["master"]["target_lufs"])
+                     target_lufs=r["master"]["target_lufs"], early=sp["early"], width=sp["width"],
+                     motion=sp["motion"], shimmer=sp["shimmer"])
     config.MIX = dict(dry=1 - 0.5 * sp["reverb_mix"], wet=2 * sp["reverb_mix"])
 
 
