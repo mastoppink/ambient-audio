@@ -30,7 +30,8 @@ def main():
     ap.add_argument("--outdir", default="out")
     ap.add_argument("--workers", type=int, help="jumlah proses paralel (default: semua core)")
     ap.add_argument("--no-mp3", action="store_true")
-    ap.add_argument("--flac", action="store_true", help="juga simpan FLAC (lossless)")
+    ap.add_argument("--flac", action="store_true", help="juga simpan FLAC 24-bit (lossless)")
+    ap.add_argument("--flac16", action="store_true", help="juga simpan FLAC 16-bit + dither (lebih kecil)")
     ap.add_argument("--no-qc", action="store_true", help="lewati laporan kualitas")
     ap.add_argument("--dry-run", action="store_true", help="tampilkan nilai final tanpa render")
     a = ap.parse_args()
@@ -62,11 +63,13 @@ def main():
                                         form_total=max(full, total), stems=a.stems,
                                         workers=a.workers)
         qc_text = pipeline.save_meta(stem, events, text, lufs, mp3=not a.no_mp3, flac=a.flac,
-                                     qc=not a.no_qc, profile=r["qc"]["profile"])
+                                     qc=not a.no_qc, profile=r["qc"]["profile"],
+                                     flac16=a.flac16, seed=seed)
         if qc_text:
             print("\n".join("  " + l for l in qc_text.splitlines()[3:] if "[CEK" in l or "[MASALAH" in l)
                   or "  QC: semua OK")
-        ext = "wav" + ("/.mp3" if not a.no_mp3 else "") + ("/.flac" if a.flac else "")
+        ext = "wav" + ("/.mp3" if not a.no_mp3 else "") + ("/.flac" if a.flac else "") \
+            + ("/.16bit.flac" if a.flac16 else "")
         print(f"  -> {stem}.{ext}/.toml  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
 
 

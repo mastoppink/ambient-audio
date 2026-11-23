@@ -125,7 +125,20 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     return events, lufs
 
 
-def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True, profile="default"):
+def export_flac16(stem, seed=0):
+    """FLAC 16-bit (kualitas CD) dengan dither TPDF, ~60% ukuran FLAC 24-bit.
+    Cukup untuk YouTube/streaming yang toh akan mengompres ulang."""
+    rng = np.random.default_rng([seed, 9])
+    lsb = 2.0 ** -15
+    with sf.SoundFile(f"{stem}.wav") as src, \
+            sf.SoundFile(f"{stem}.16bit.flac", "w", SR, 2, "PCM_16", format="FLAC") as dst:
+        for b in src.blocks(blocksize=SR * 30, dtype="float64"):
+            d = (rng.random(b.shape) - rng.random(b.shape)) * lsb
+            dst.write(np.clip(b + d, -1, 1 - lsb))
+
+
+def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True, profile="default",
+              flac16=False, seed=0):
     with open(f"{stem}.toml", "w") as f:
         f.write(f"# loudness terukur: {lufs:.1f} LUFS\n" + resolved_toml)
     with open(f"{stem}.events.json", "w") as f:
@@ -138,6 +151,8 @@ def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True, 
                 sf.SoundFile(f"{stem}.flac", "w", SR, 2, "PCM_24", format="FLAC") as dst:
             for b in src.blocks(blocksize=SR * 30, dtype="int32"):
                 dst.write(b)
+    if flac16:
+        export_flac16(stem, seed)
     if qc:
         import qc as qc_mod
         r = qc_mod.analyze(f"{stem}.wav")
