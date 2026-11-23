@@ -18,3 +18,23 @@ PAD = dict(
     cutoff_max=2200.0,
     lfo_period=45.0,    # detik
 )
+
+DRONE = dict(
+    PAD,
+    n_osc=3,
+    detune_cents=4.0,
+    saw_mix=0.25,       # lebih lembut
+    sub_level=0.0,      # drone sudah rendah; hindari penumpukan < 80 Hz
+    attack=15.0,
+    release=20.0,
+    cutoff_min=180.0,
+    cutoff_max=650.0,
+    lfo_period=83.0,
+)
+DRONE_NOTES = [38, 45]  # D2 + A2
+DRONE_LEVEL = 0.8
+
+PAD_LEVEL = 0.55
+PAD_RANGE = (52, 74)        # E3..D5: rentang nada chord
+CHORD_SECONDS = (50, 80)    # durasi tiap chord (plan final: 60-120)
+CHORD_OVERLAP = 12.0        # detik tumpang-tindih antar chord (crossfade)

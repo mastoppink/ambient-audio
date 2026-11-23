@@ -9,25 +9,40 @@ def midi_to_hz(m):
     return 440.0 * 2 ** ((m - 69) / 12)
 
 
-def saw_additive(freq, n, phase0, harmonics):
-    """Saw band-limited: jumlah harmonik di bawah Nyquist saja (tanpa aliasing)."""
-    t = np.arange(n) / SR
-    out = np.zeros(n)
-    for k in range(1, harmonics + 1):
+TABLE = 4096
+
+
+def _wavetable(freq, harmonics, kind):
+    """Satu siklus gelombang band-limited (hanya harmonik di bawah Nyquist)."""
+    ph = np.arange(TABLE) / TABLE * 2 * np.pi
+    w = np.zeros(TABLE + 1)
+    if kind == "saw":
+        ks, amp = range(1, harmonics + 1), lambda i, k: 1 / k
+        scale = 2 / np.pi
+    else:
+        ks, amp = range(1, harmonics * 2, 2), lambda i, k: (-1) ** i / k**2
+        scale = 8 / np.pi**2
+    for i, k in enumerate(ks):
         if k * freq >= SR / 2:
             break
-        out += np.sin(2 * np.pi * k * freq * t + k * phase0) / k
-    return out * (2 / np.pi)
+        w[:TABLE] += amp(i, k) * np.sin(k * ph)
+    w[TABLE] = w[0]
+    return w * scale
+
+
+def _read_table(table, freq, n, phase0):
+    pos = (phase0 / (2 * np.pi) + freq * np.arange(n) / SR) % 1.0 * TABLE
+    i = pos.astype(np.int64)
+    frac = pos - i
+    return table[i] * (1 - frac) + table[i + 1] * frac
+
+
+def saw_additive(freq, n, phase0, harmonics):
+    return _read_table(_wavetable(freq, harmonics, "saw"), freq, n, phase0)
 
 
 def triangle_additive(freq, n, phase0, harmonics):
-    t = np.arange(n) / SR
-    out = np.zeros(n)
-    for i, k in enumerate(range(1, harmonics * 2, 2)):
-        if k * freq >= SR / 2:
-            break
-        out += (-1) ** i * np.sin(2 * np.pi * k * freq * t + k * phase0) / k**2
-    return out * (8 / np.pi**2)
+    return _read_table(_wavetable(freq, harmonics, "tri"), freq, n, phase0)
 
 
 def sine(freq, n, phase0=0.0):
@@ -50,7 +65,7 @@ def lfo(n, period, phase0=0.0):
     return 0.5 + 0.5 * np.sin(2 * np.pi * np.arange(n) / SR / period + phase0)
 
 
-def moving_lowpass(x, cutoff, block=512, order=2):
+def moving_lowpass(x, cutoff, block=1024, order=2):
     """Low-pass yang cutoff-nya berubah per blok kecil; state filter dibawa antar blok."""
     out = np.empty_like(x)
     zi = None
