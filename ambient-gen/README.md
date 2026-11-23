@@ -139,3 +139,8 @@ Render sekitar 1,7x lebih lambat dari milestone 4 (harmonik & drift lebih banyak
 | Starlight Lullaby | A Ionian | lembut, manis (tidur anak) | piano jauh | -16 |
 | Solitude | B Aeolian | sendu, reflektif | piano sangat jarang, chord 2-3 menit | -15 |
 | Meditation | D Dorian | statis (meditasi/yoga) | tanpa melodi | -15 |
+
+### MP3 siap upload
+Setiap render (tanpa `--no-mp3`) membuat MP3 320 kbps CBR / 48 kHz dengan tag judul. Karena encoding MP3
+bisa menaikkan puncak, file didekode ulang dan true peak diukur; kalau melewati -1 dBTP, volume
+diturunkan secukupnya (biasanya ~0,1 dB) lalu di-encode ulang. 60 menit ≈ 137 MB.

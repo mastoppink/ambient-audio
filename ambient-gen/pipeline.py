@@ -137,6 +137,39 @@ def export_flac16(stem, seed=0):
             dst.write(np.clip(b + d, -1, 1 - lsb))
 
 
+def _mp3_true_peak(mp3):
+    """Dekode MP3 dan ukur true peak (oversampling 4x), dBTP."""
+    from scipy.signal import resample_poly
+    out = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", mp3, "-f", "f32le", "-ac", "2",
+                          "-ar", str(SR), "-"], capture_output=True, check=True).stdout
+    x = np.frombuffer(out, dtype=np.float32).reshape(-1, 2)
+    peak = 0.0
+    for i in range(0, len(x), SR * 60):
+        peak = max(peak, float(np.abs(resample_poly(x[i:i + SR * 60], 4, 1, axis=0)).max()))
+    return 20 * np.log10(peak + 1e-12)
+
+
+def export_mp3(stem, title="", ceiling_dbtp=-1.0, bitrate="320k", log=print):
+    """MP3 siap upload: 320 kbps CBR, 48 kHz, tag judul.
+    Encoding MP3 bisa menaikkan puncak; kalau setelah dekode true peak > ceiling,
+    turunkan volume secukupnya dan encode ulang."""
+    wav, mp3 = f"{stem}.wav", f"{stem}.mp3"
+    gain = 0.0
+    for _ in range(3):
+        cmd = ["ffmpeg", "-loglevel", "error", "-y", "-i", wav]
+        if gain:
+            cmd += ["-af", f"volume={gain:.2f}dB"]
+        cmd += ["-c:a", "libmp3lame", "-b:a", bitrate, "-ar", str(SR),
+                "-metadata", f"title={title}", "-metadata", "comment=Spacenight ambient-gen", mp3]
+        subprocess.run(cmd, check=True)
+        tp = _mp3_true_peak(mp3)
+        if tp <= ceiling_dbtp:
+            break
+        gain -= tp - ceiling_dbtp + 0.1
+    log(f"  mp3 {bitrate}: true peak {tp:.2f} dBTP (koreksi volume {gain:+.2f} dB)")
+    return tp, gain
+
+
 def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True, profile="default",
               flac16=False, seed=0):
     with open(f"{stem}.toml", "w") as f:
@@ -144,8 +177,9 @@ def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True, 
     with open(f"{stem}.events.json", "w") as f:
         json.dump(to_dicts(events), f, indent=1)
     if mp3 and shutil.which("ffmpeg"):
-        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", f"{stem}.wav",
-                        "-b:a", "192k", f"{stem}.mp3"], check=True)
+        import tomllib
+        title = tomllib.loads(resolved_toml).get("name", "")
+        export_mp3(stem, title=title)
     if flac:   # lossless, ~55-60% ukuran WAV
         with sf.SoundFile(f"{stem}.wav") as src, \
                 sf.SoundFile(f"{stem}.flac", "w", SR, 2, "PCM_24", format="FLAC") as dst:
