@@ -10,7 +10,7 @@ mode = "lydian"
 [mix]
 drone = 0.8
 pad = 0.55
-melody = 0.25
+melody = 0.21
 texture = 0.04
 
 [pad]
@@ -23,6 +23,7 @@ chord_weights = { II = 3.5 }   # tonjolkan chord II (warna #4 Lydian)
 [melody]
 timbre = "glass"
 phrases = 0.3
+consonance = 1.0       # melodi menghindari nada sumbang terhadap chord
 density = 0.6
 decay = 9.0
 register = 0.6

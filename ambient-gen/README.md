@@ -26,6 +26,7 @@ File `.toml` itu bisa dipakai lagi sebagai preset dan menghasilkan audio yang id
 | `[texture]` | `brightness` | 0..1 |
 | `[melody]` | `density`, `decay`, `register` | 0..1 jarang→sering; detik; 0..1 rendah→tinggi |
 | | `timbre`, `phrases` | `soft` / `glass` (bel kaca) / `kalimba` / `piano` (jauh & lembut); 0..1 peluang frasa 2-3 nada |
+| | `consonance` | 0 = bebas / 1 = melodi menghindari nada 1 semiton dari chord & drone, juga saat chord berganti |
 | `[space]` | `reverb_decay`, `reverb_mix`, `delay_feedback` | detik; 0..1; 0..0.6 |
 | | `early`, `width`, `motion`, `shimmer` | 0..1: pantulan awal, lebar stereo reverb, modulasi ekor, kilau oktaf atas |
 | `[form]` | `amount`, `period_min`, `intro_min`, `outro_min`, `bright` | bentuk makro: seberapa kuat & seberapa lambat intensitas naik-turun |
@@ -116,3 +117,12 @@ Render sekitar 1,7x lebih lambat dari milestone 4 (harmonik & drift lebih banyak
   frasa pendek 2-3 nada yang makin pelan (`melody.phrases`).
 - Loudness: YouTube menurunkan video yang lebih keras dari ~-14 LUFS tetapi tidak menaikkan yang lebih pelan.
   Nebula & Drift memakai -14 LUFS, Deep Sleep -16 LUFS (konten tidur sedikit lebih pelan).
+
+### Melodi yang menyatu (tidak sumbang)
+- Bel kaca & kalimba memakai parsial harmonis (FM 2:1, parsial 4x / 6x). Rasio lama 3,5 / 2,76 / 5,95
+  menghasilkan parsial di luar tangga nada yang terdengar sumbang di atas pad.
+- `melody.consonance = 1` (Nebula, Drift): tiap nada, termasuk nada frasa, dijaga agar tidak berjarak
+  1 semiton dari chord/drone yang sedang bunyi, chord lama yang masih memudar, dan chord berikutnya kalau
+  nada masih berdengung saat pergantian. Deep Sleep tidak berubah (consonance 0, hasil identik).
+- `python harmony_check.py out/x.events.json` menghitung bentrokan. 5 seed x 60 menit:
+  Nebula 13% → 0%, Drift 9% → 0%.

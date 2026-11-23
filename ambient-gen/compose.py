@@ -82,12 +82,57 @@ def chord_progression(total, rng):
     return out
 
 
+def _allowed_pcs(chord_notes):
+    """Nada yang aman di atas chord: nada chord + nada skala yang tidak berjarak 1 semiton
+    dari nada chord atau drone mana pun (minor 2nd = interval paling sumbang)."""
+    pad = {n % 12 for n in chord_notes}
+    ctx = pad | {d % 12 for d in config.DRONE_NOTES}
+    scale = {(config.TONIC_MIDI + s) % 12 for s in config.SCALE}
+    safe = {pc for pc in scale if all((pc - c) % 12 not in (1, 11) for c in ctx)}
+    return pad | safe
+
+
+def _snap(pool, idx, allowed):
+    """Geser ke indeks terdekat yang nadanya diizinkan (deterministik, tanpa angka acak)."""
+    if pool[idx] % 12 in allowed:
+        return idx
+    cand = [i for i in range(len(pool)) if pool[i] % 12 in allowed]
+    return min(cand, key=lambda i: (abs(i - idx), i)) if cand else idx
+
+
+def _allowed_at(t, ring, chords):
+    """Nada aman untuk nada yang mulai di t dan masih terdengar selama `ring` detik:
+    harus cocok dengan chord sekarang DAN chord berikutnya kalau pergantian terjadi saat itu."""
+    cur_i = max(i for i, c in enumerate(chords) if c[0] <= t)
+    allowed = _allowed_pcs(chords[cur_i][3])
+    if cur_i > 0:
+        prev = chords[cur_i - 1]
+        if t < prev[0] + prev[1] - config.CHORD_OVERLAP * 0.5:   # chord lama masih terdengar
+            allowed = (allowed & _allowed_pcs(prev[3])) or allowed
+    for c in chords[cur_i + 1:]:
+        # chord berikutnya mulai terdengar jelas setelah crossfade setengah jalan
+        if c[0] + config.CHORD_OVERLAP * 0.5 < t + ring:
+            both = allowed & _allowed_pcs(c[3])
+            allowed = both or {n % 12 for n in c[3]}
+        else:
+            break
+    return allowed
+
+
 def melody(total, rng, chords):
-    """Nada jarang: random walk berbobot pada skala, condong ke nada chord yang sedang bunyi."""
+    """Nada jarang: random walk berbobot pada skala, condong ke nada chord yang sedang bunyi.
+
+    melody.consonance > 0: setiap nada (termasuk nada frasa) dijaga agar tidak berjarak
+    1 semiton dari chord/drone, termasuk chord berikutnya kalau nada masih berdengung saat
+    chord berganti. Tidak memakai angka acak tambahan, jadi consonance = 0 memberi hasil
+    yang persis sama seperti sebelumnya.
+    """
     p = config.MELODY
     lo, hi = p["range"]
     pool = [m for m in range(lo, hi + 1)
             if (m - config.TONIC_MIDI) % 12 in config.SCALE]
+    cons = p.get("consonance", 0.0) > 0
+    ring = p["decay"] * 1.2
     idx = len(pool) // 2
     t = rng.uniform(*p["gap"]) * 0.6
     out = []
@@ -99,6 +144,8 @@ def melody(total, rng, chords):
         if pool[idx] % 12 not in chord_pcs and rng.random() < 0.6:
             near = [i for i in range(len(pool)) if pool[i] % 12 in chord_pcs]
             idx = min(near, key=lambda i: abs(i - idx))
+        if cons:
+            idx = _snap(pool, idx, _allowed_at(t, ring, chords))
         dur = min(p["decay"] * 2.5, total - t)
         keep = rng.random()   # selalu diambil -> urutan acak tidak bergantung pada kurva
         # frasa: kadang 2-3 nada berurutan (melangkah dekat, makin pelan), bukan nada tunggal
@@ -113,6 +160,12 @@ def melody(total, rng, chords):
                 for k in range(n_extra):
                     tt += spacing[k]
                     j = int(np.clip(j + steps[k], 0, len(pool) - 1))
+                    if cons:
+                        j2 = _snap(pool, j, _allowed_at(tt, ring, chords))
+                        if pool[j2] == out[-1].midi:     # jangan ulang nada yang sama
+                            j2 = _snap(pool, int(np.clip(j + np.sign(steps[k]), 0, len(pool) - 1)),
+                                       _allowed_at(tt, ring, chords))
+                        j = j2
                     if tt < total - 8:
                         out.append(Event(round(tt, 3), round(min(dur, total - tt), 3), pool[j],
                                          "melody", cur[2], vel=round(0.75 - 0.15 * k, 2)))

@@ -291,19 +291,23 @@ def melody_voice(timbre, midi, duration, rng, decay, pan, vel=1.0, offset=0, n=N
     f = f0 * det
 
     if timbre == "glass":
-        ratio = 3.5
-        index = 1.6 * np.exp(-t / (decay * 0.18)) + 0.15
+        # rasio FM 2:1 -> semua sideband jatuh di harmonik (ganjil) dari nada, jadi menyatu dengan
+        # chord. (Dulu 3.5 & parsial 2.76: berkilau tapi parsialnya di luar tangga nada = sumbang.)
+        ratio = 2.0
+        index = 1.1 * np.exp(-t / (decay * 0.15)) + 0.1
         mod = np.sin(2 * np.pi * f * ratio * t + ph[0])
         x = np.sin(2 * np.pi * f * t + ph[1] + index * mod)
-        x += 0.25 * np.sin(2 * np.pi * f * 2.76 * t + ph[2]) * np.exp(-t / (decay * 0.3))
+        x += 0.18 * np.sin(2 * np.pi * f * 4.0 * 2 ** (4 / 1200) * t + ph[2]) * np.exp(-t / (decay * 0.2))
         env = np.exp(-t / decay)
-        a_s = 0.008
+        a_s = 0.03      # serangan sedikit lembut -> menyatu dengan pad, tidak "menusuk"
     elif timbre == "kalimba":
         x = np.sin(2 * np.pi * f * t + ph[0])
-        x += 0.35 * np.sin(2 * np.pi * f * 5.95 * t + ph[1]) * np.exp(-t / 0.12)
+        # parsial "logam" kalimba di 6x (2 oktaf + kuint) alih-alih 5.95x: tetap ada kilau petikan,
+        # tapi jatuh di nada yang harmonis
+        x += 0.3 * np.sin(2 * np.pi * f * 6.0 * t + ph[1]) * np.exp(-t / 0.09)
         x += 0.15 * np.sin(2 * np.pi * f * 2 * t + ph[2]) * np.exp(-t / (decay * 0.25))
         env = np.exp(-t / (decay * 0.55))
-        a_s = 0.006
+        a_s = 0.014
     elif timbre == "piano":
         B = 0.0004
         x = np.zeros_like(t)

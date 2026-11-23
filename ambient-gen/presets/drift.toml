@@ -10,7 +10,7 @@ mode = "dorian"
 [mix]
 drone = 0.75
 pad = 0.6
-melody = 0.3
+melody = 0.26
 texture = 0.035
 
 [pad]
@@ -26,6 +26,7 @@ sub = 0.3
 [melody]
 timbre = "kalimba"
 phrases = 0.4
+consonance = 1.0
 density = [0.7, 0.85]
 decay = 7.0
 register = 0.45
