@@ -34,6 +34,7 @@ class Event:
     midi: int
     layer: str
     label: str = ""
+    vel: float = 1.0
 
 
 def degree_pcs(degrees):
@@ -100,8 +101,21 @@ def melody(total, rng, chords):
             idx = min(near, key=lambda i: abs(i - idx))
         dur = min(p["decay"] * 2.5, total - t)
         keep = rng.random()   # selalu diambil -> urutan acak tidak bergantung pada kurva
+        # frasa: kadang 2-3 nada berurutan (melangkah dekat, makin pelan), bukan nada tunggal
+        is_phrase = rng.random() < p.get("phrase_prob", 0.0)
+        n_extra = int(rng.integers(1, 3))
+        steps = rng.choice([-2, -1, 1, 2], size=2, p=[.2, .35, .3, .15])
+        spacing = rng.uniform(0.7, 1.9, size=2)
         if config.SHAPE is None or keep < 0.3 + 0.9 * float(config.SHAPE(t)):
             out.append(Event(round(t, 3), round(dur, 3), pool[idx], "melody", cur[2]))
+            if is_phrase:
+                tt, j = t, idx
+                for k in range(n_extra):
+                    tt += spacing[k]
+                    j = int(np.clip(j + steps[k], 0, len(pool) - 1))
+                    if tt < total - 8:
+                        out.append(Event(round(tt, 3), round(min(dur, total - tt), 3), pool[j],
+                                         "melody", cur[2], vel=round(0.75 - 0.15 * k, 2)))
         gap = rng.uniform(*p["gap"])
         if rng.random() < p["rest_prob"]:
             gap += rng.uniform(10, 30)

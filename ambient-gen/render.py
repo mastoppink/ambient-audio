@@ -6,7 +6,7 @@ dikerjakan paralel dan memorinya tetap kecil.
 import numpy as np
 
 import config
-from synth import pad_voice, bell_voice, texture_segment
+from synth import pad_voice, melody_voice, texture_segment
 
 SR = config.SAMPLE_RATE
 LAYER_NAMES = ("drone", "pad", "melody", "texture")
@@ -30,7 +30,8 @@ def _event_audio(e, seed, offset, n):
         if p["level"] <= 0:
             return None
         pan = rng.uniform(0.2, 0.8)
-        return bell_voice(e.midi, e.dur, rng, p["attack"], p["decay"], pan, offset, n) * p["level"]
+        return melody_voice(p.get("timbre", "soft"), e.midi, e.dur, rng, p["decay"], pan,
+                            e.vel, offset, n, attack=p["attack"]) * p["level"]
     params, level = _layer(e.layer)
     if level <= 0:
         return None

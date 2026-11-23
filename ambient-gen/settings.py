@@ -44,6 +44,8 @@ DEFAULTS = {
         "density": 0.67,             # 0 sangat jarang .. 1 cukup sering
         "decay": 9.0,
         "register": 0.5,             # 0 rendah .. 1 tinggi
+        "timbre": "soft",            # soft / glass / kalimba / piano
+        "phrases": 0.0,              # 0..1 peluang nada menjadi frasa pendek 2-3 nada
     },
     "texture": {"brightness": 0.5},
     "space": {
@@ -178,7 +180,10 @@ def apply(r):
     mean_gap = 8 + 60 * (1 - m["density"])
     lo = t + 12 + round(12 * m["register"])
     config.MELODY = dict(config.MELODY, gap=(mean_gap * 0.5, mean_gap * 1.5),
-                         range=(lo, lo + 24), decay=m["decay"], level=mix["melody"])
+                         range=(lo, lo + 24), decay=m["decay"], level=mix["melody"],
+                         timbre=str(m["timbre"]), phrase_prob=float(m["phrases"]))
+    if config.MELODY["timbre"] not in ("soft", "glass", "kalimba", "piano"):
+        raise ValueError(f"melody.timbre {m['timbre']!r} tidak dikenal; pilih soft/glass/kalimba/piano")
 
     fm = r["form"]
     config.PAD["shape_bright"] = fm["amount"] * fm["bright"]

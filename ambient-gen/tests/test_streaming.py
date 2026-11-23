@@ -61,3 +61,18 @@ def test_preview_audio_is_prefix_of_long_with_form():
     long_ = render_segment(compose(1800, 11, with_melody=True), 0, 40 * SR, 11)
     for k in ("pad", "melody", "texture"):
         assert np.abs(short[k] - long_[k]).max() < 1e-5, k
+
+
+def test_segments_equal_whole_with_timbres_and_phrases():
+    import settings
+    for tb in ("glass", "kalimba", "piano"):
+        settings.apply(settings.resolve(settings.load(
+            overrides=[f'melody.timbre="{tb}"', "melody.phrases=0.8", "melody.density=1.0"]), 5))
+        ev = [e for e in compose(60, 5, with_melody=True) if e.layer == "melody"]  # hanya melodi: cepat
+        assert len(ev) >= 3
+        n = 60 * SR
+        whole = render_segment(ev, 0, n, 5)["melody"]
+        seg = int(11.7 * SR)
+        parts = np.vstack([render_segment(ev, s, min(seg, n - s), 5, i)["melody"]
+                           for i, s in enumerate(range(0, n, seg))])
+        assert np.abs(parts - whole).max() < 1e-5, tb

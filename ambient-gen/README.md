@@ -25,6 +25,7 @@ File `.toml` itu bisa dipakai lagi sebagai preset dan menghasilkan audio yang id
 | `[drone]` | `brightness`, `sub` | 0..1; sub = sinus satu oktaf di bawah drone terendah |
 | `[texture]` | `brightness` | 0..1 |
 | `[melody]` | `density`, `decay`, `register` | 0..1 jarang→sering; detik; 0..1 rendah→tinggi |
+| | `timbre`, `phrases` | `soft` / `glass` (bel kaca) / `kalimba` / `piano` (jauh & lembut); 0..1 peluang frasa 2-3 nada |
 | `[space]` | `reverb_decay`, `reverb_mix`, `delay_feedback` | detik; 0..1; 0..0.6 |
 | | `early`, `width`, `motion`, `shimmer` | 0..1: pantulan awal, lebar stereo reverb, modulasi ekor, kilau oktaf atas |
 | `[form]` | `amount`, `period_min`, `intro_min`, `outro_min`, `bright` | bentuk makro: seberapa kuat & seberapa lambat intensitas naik-turun |
@@ -109,3 +110,9 @@ Perubahan suara (diukur dengan qc.py, preview 4 menit):
 | air 6-16k | -58 | -35 |
 
 Render sekitar 1,7x lebih lambat dari milestone 4 (harmonik & drift lebih banyak): 60 menit ≈ 5 menit di 4 core.
+
+### Melodi dan target YouTube
+- Timbre melodi per preset: Nebula `glass`, Drift `kalimba`, Deep Sleep `piano`; sebagian nada menjadi
+  frasa pendek 2-3 nada yang makin pelan (`melody.phrases`).
+- Loudness: YouTube menurunkan video yang lebih keras dari ~-14 LUFS tetapi tidak menaikkan yang lebih pelan.
+  Nebula & Drift memakai -14 LUFS, Deep Sleep -16 LUFS (konten tidur sedikit lebih pelan).

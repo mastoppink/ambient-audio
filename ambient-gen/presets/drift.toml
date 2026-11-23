@@ -24,9 +24,14 @@ brightness = 0.35
 sub = 0.3
 
 [melody]
+timbre = "kalimba"
+phrases = 0.4
 density = [0.7, 0.85]
 decay = 7.0
 register = 0.45
+
+[master]
+target_lufs = -14.0   # YouTube
 
 [space]
 reverb_decay = 9.0

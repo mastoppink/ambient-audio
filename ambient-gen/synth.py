@@ -266,3 +266,70 @@ def texture_segment(t_start, n, seed, seg, p, shape=None):
             amp = amp * ((1 - k) + k * (0.25 + 1.5 * shape(t)))
         chans.append((y * amp)[pre:])
     return np.stack(chans, axis=1) * 0.35   # ~ setara level normalisasi lama
+
+
+# ---------- suara melodi: beberapa timbre ----------
+# disamakan kira-kira ke loudness yang sama (diukur: RMS rangkaian 3 nada)
+TIMBRE_GAIN = {"soft": 1.0, "glass": 0.9, "kalimba": 1.08, "piano": 2.2}
+
+def melody_voice(timbre, midi, duration, rng, decay, pan, vel=1.0, offset=0, n=None, attack=1.2):
+    """Nada melodi stereo. Semua angka acak diambil di depan -> render per segmen identik.
+
+    timbre:
+      soft  - sinus lembut dengan attack pelan (suara lama)
+      glass - bel kaca: FM dengan rasio tidak harmonis, kilau yang cepat meredup
+      kalimba - petikan lembut: fundamental + parsial tinggi yang sangat singkat
+      piano - piano jauh & lembut: parsial sedikit tidak harmonis, dua senar, decay dua tahap
+    """
+    total_n = int(duration * SR)
+    n = total_n - offset if n is None else n
+    f0 = midi_to_hz(midi)
+    ph = rng.uniform(0, 2 * np.pi, 12)
+    det = 2 ** (rng.uniform(-3, 3) / 1200)
+    idx = np.arange(offset, min(offset + n, total_n))
+    t = idx / SR
+    f = f0 * det
+
+    if timbre == "glass":
+        ratio = 3.5
+        index = 1.6 * np.exp(-t / (decay * 0.18)) + 0.15
+        mod = np.sin(2 * np.pi * f * ratio * t + ph[0])
+        x = np.sin(2 * np.pi * f * t + ph[1] + index * mod)
+        x += 0.25 * np.sin(2 * np.pi * f * 2.76 * t + ph[2]) * np.exp(-t / (decay * 0.3))
+        env = np.exp(-t / decay)
+        a_s = 0.008
+    elif timbre == "kalimba":
+        x = np.sin(2 * np.pi * f * t + ph[0])
+        x += 0.35 * np.sin(2 * np.pi * f * 5.95 * t + ph[1]) * np.exp(-t / 0.12)
+        x += 0.15 * np.sin(2 * np.pi * f * 2 * t + ph[2]) * np.exp(-t / (decay * 0.25))
+        env = np.exp(-t / (decay * 0.55))
+        a_s = 0.006
+    elif timbre == "piano":
+        B = 0.0004
+        x = np.zeros_like(t)
+        for k in range(1, 9):
+            fk = f * k * np.sqrt(1 + B * k * k)
+            if fk > 9000:
+                break
+            amp = k ** -1.6 * np.exp(-(k - 1) * 0.25)          # palu lembut: parsial atas kecil
+            dk = decay / (1 + 0.45 * (k - 1))
+            for s, c in ((0, 0.0), (1, 0.8)):                   # dua senar, beda 0.8 cent
+                x += 0.5 * amp * np.sin(2 * np.pi * fk * 2 ** (c / 1200) * t + ph[k + s]) \
+                    * (0.55 * np.exp(-t / (dk * 0.12)) + 0.45 * np.exp(-t / dk))
+        env = np.ones_like(t)
+        a_s = 0.01
+    else:  # soft
+        x = (np.sin(2 * np.pi * f * t + ph[0])
+             + 0.3 * np.sin(2 * np.pi * f0 * 2 * t + ph[1]) * np.exp(-t / (decay * 0.4))
+             + 0.08 * np.sin(2 * np.pi * f0 * 3 * t + ph[2]) * np.exp(-t / (decay * 0.2)))
+        env = np.exp(-t / decay)
+        a_s = attack
+    a = max(1, int(a_s * SR))
+    m = idx < a
+    env = env.copy()
+    env[m] *= np.sin(idx[m] / a * np.pi / 2) ** 2
+    tail = int(0.5 * SR)
+    m = idx >= total_n - tail
+    env[m] *= (total_n - idx[m]) / tail
+    x = x * env * vel * TIMBRE_GAIN.get(timbre, 1.0)
+    return _fit(np.stack([x * np.cos(pan * np.pi / 2), x * np.sin(pan * np.pi / 2)], axis=1), n)
