@@ -1,5 +1,5 @@
 // Antarmuka Spacenight Studio.
-import { resolve, technical, deepMerge, MODES, NOTE_NAMES, FORM_TYPES } from "./music.js";
+import { resolve, technical, deepMerge, clone, MODES, NOTE_NAMES, FORM_TYPES } from "./music.js";
 import { Engine } from "./engine.js";
 import { integratedLoudness, limitInPlace, wavBlob } from "./dsp.js";
 import { toToml } from "./toml.js";
@@ -49,7 +49,7 @@ const CONTROLS = {
 };
 
 const get = (o, path) => path.split(".").reduce((a, k) => a?.[k], o);
-const set = (o, path, v) => { const ks = path.split("."); let n = o; for (const k of ks.slice(0, -1)) n = n[k] ??= {}; n[ks.at(-1)] = v; };
+const set = (o, path, v) => { const ks = path.split("."); let n = o; for (const k of ks.slice(0, -1)) n = n[k] ??= {}; n[ks[ks.length - 1]] = v; };
 const fmt = (v, step) => (step >= 1 ? v.toFixed(0) : step >= 0.1 ? v.toFixed(1) : step >= 0.01 ? v.toFixed(2) : v.toFixed(3));
 
 async function init() {
@@ -67,7 +67,7 @@ async function init() {
   $("#tonic").onchange = () => { set(state.raw, "key.tonic", $("#tonic").value); refresh(); };
   $("#mode").onchange = () => { set(state.raw, "key.mode", $("#mode").value); refresh(); };
   $("#formtype").onchange = () => {
-    set(state.raw, "form.type", $("#formtype").value || structuredClone(DATA.presets[state.presetKey].form?.type ?? DATA.defaults.form.type));
+    set(state.raw, "form.type", $("#formtype").value || clone(DATA.presets[state.presetKey].form?.type ?? DATA.defaults.form.type));
     refresh();
   };
   $("#newver").onclick = () => {   // nomor versi + nada dasar baru: menurut ukuran kemiripan, ini yang paling membedakan
@@ -159,16 +159,64 @@ async function togglePlay() {
     playing = false; startToken++;
     engine?.stop(); engine = null; clearInterval(timer); setPlayButton(false); return;
   }
+  // iOS: semua langkah di bawah harus terjadi langsung di dalam ketukan tombol (sebelum await apa pun)
+  unlockIOSAudio();
   if (!ctx) {
-    ctx = new AudioContext({ sampleRate: SR, latencyHint: "playback" });
+    const AC = window.AudioContext || window.webkitAudioContext;
+    try { ctx = new AC({ sampleRate: SR, latencyHint: "playback" }); }
+    catch (e) { ctx = new AC(); }   // sebagian iOS menolak sample rate yang diminta
+    ctx.onstatechange = () => { if (playing && ctx.state !== "running") audioHint(); else audioHint(false); };
     bus = ctx.createGain(); bus.connect(ctx.destination);       // semua mesin lewat sini
     busAn = ctx.createAnalyser(); busAn.fftSize = 8192; bus.connect(busAn);
     window.__busAn = busAn;   // untuk pengujian otomatis: level keluaran sebenarnya
   }
-  await ctx.resume();
+  try { await ctx.resume(); } catch (e) { /* ditangani di bawah */ }
   playing = true; setPlayButton(true);
+  setTimeout(() => { if (playing && ctx.state !== "running") audioHint(); }, 1200);
   startEngine(false);
 }
+
+// ---------- iPhone / iPad ----------
+// Di iOS, Web Audio memakai kategori audio "ambient": dibisukan oleh tombol senyap di samping iPhone.
+// Dua cara agar dianggap pemutar musik: navigator.audioSession (iOS 16.4+), dan untuk iOS lama
+// sebuah elemen <audio> berisi keheningan yang diputar berulang di dalam ketukan tombol.
+let silentEl = null;
+function unlockIOSAudio() {
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) { /* tidak didukung */ }
+  if (!silentEl) {
+    silentEl = document.createElement("audio");
+    silentEl.src = silentWavUrl();
+    silentEl.loop = true;
+    silentEl.setAttribute("playsinline", "");
+    silentEl.setAttribute("aria-hidden", "true");
+    silentEl.style.display = "none";
+    document.body.appendChild(silentEl);
+  }
+  const p = silentEl.play();
+  if (p && p.catch) p.catch(() => {});
+}
+
+function silentWavUrl() {   // WAV 0,5 detik berisi nol (16-bit mono 8 kHz)
+  const n = 4000, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt "); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, 8000, true); v.setUint32(28, 16000, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
+
+/** Pesan kalau audio browser tidak berjalan (iOS bisa menghentikannya setelah telepon/kunci layar). */
+function audioHint(show = true) {
+  const el = $("#audiohint");
+  if (!el) return;
+  el.hidden = !show;
+}
+
+// iOS: kembali ke halaman / ketukan berikutnya -> coba lanjutkan audio yang terhenti
+document.addEventListener("visibilitychange", () => { if (!document.hidden && playing && ctx && ctx.state !== "running") ctx.resume().catch(() => {}); });
+document.addEventListener("touchend", () => {
+  if (playing && ctx && ctx.state !== "running") { unlockIOSAudio(); ctx.resume().then(() => audioHint(false)).catch(() => {}); }
+}, { passive: true });
 
 function setPlayButton(on) {
   const b = $("#play");
@@ -315,7 +363,8 @@ async function renderWav() {
   const total = minutes * 60, btn = $("#render");
   btn.disabled = true;
   const { r, P } = current();
-  const oc = new OfflineAudioContext(2, Math.round(total * SR), SR);
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const oc = new OAC(2, Math.round(total * SR), SR);
   const eng = await Engine.create(oc, P, state.seed, { total, offline: true, start: 0 });
   eng.scheduleUntil(total);
   const step = Math.max(5, Math.floor(total / 40));

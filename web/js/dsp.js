@@ -41,7 +41,8 @@ async function renderIR(sr, seed, { decay, predelay, hp, early, width }) {
   const rng = rngFor(seed, "ir");
   const n = Math.floor((decay * 1.25 + predelay) * sr), pre = Math.floor(predelay * sr);
   // 4 kanal: 0-1 ekor, 2-3 pantulan awal (dinormalkan terpisah di bawah)
-  const oc = new OfflineAudioContext(4, n, sr);
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const oc = new OAC(4, n, sr);
   const noise = oc.createBuffer(2, n, sr);
   for (let ch = 0; ch < 2; ch++) { const x = noise.getChannelData(ch); for (let i = 0; i < n; i++) x[i] = (rng() + rng() + rng() + rng() - 2) * 1.732; }
   const merge = oc.createChannelMerger(4); merge.connect(oc.destination);

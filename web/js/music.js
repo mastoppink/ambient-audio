@@ -52,12 +52,15 @@ const clip = (x, a, b) => Math.min(b, Math.max(a, x));
 const lerpLog = (lo, hi, x) => lo * (hi / lo) ** x;
 
 // ---------- preset ----------
+// salinan dalam untuk data JSON biasa (structuredClone belum ada di iOS < 15.4)
+export const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
+
 export function deepMerge(base, over) {
-  const out = structuredClone(base);
+  const out = clone(base);
   for (const [k, v] of Object.entries(over || {})) {
     if (v && typeof v === "object" && !Array.isArray(v) && out[k] && typeof out[k] === "object"
         && !Array.isArray(out[k])) out[k] = deepMerge(out[k], v);
-    else out[k] = structuredClone(v);
+    else out[k] = clone(v);
   }
   return out;
 }
@@ -294,7 +297,8 @@ export class Composer {
 
   _allowedAt(t, ring) {
     const P = this.P;
-    const i = this.chords.findLastIndex((c) => c.start <= t);
+    let i = 0;   // indeks chord terakhir yang sudah mulai (findLastIndex belum ada di iOS < 15.4)
+    for (let j = 0; j < this.chords.length; j++) if (this.chords[j].start <= t) i = j;
     let allowed = this._allowedPcs(this.chords[i].notes);
     const inter = (a, b) => new Set([...a].filter((x) => b.has(x)));
     if (i > 0) {
