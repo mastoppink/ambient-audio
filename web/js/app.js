@@ -376,6 +376,9 @@ async function renderWav() {
   $("#status").textContent = "Mastering…";
   await new Promise((res) => setTimeout(res, 20));
   const ch = [buf.getChannelData(0), buf.getChannelData(1)];
+  // fade-out di akhir lagu, sama dengan pipeline Python: 30 detik (atau 1/4 durasi untuk lagu pendek)
+  const nFade = Math.floor(Math.min(30, total / 4) * SR), nAll = ch[0].length;
+  for (const x of ch) for (let i = nAll - nFade; i < nAll; i++) { const k = (nAll - i) / nFade; x[i] *= k * k; }
   const lufs0 = integratedLoudness(ch, SR);
   const gain = 10 ** ((r.master.target_lufs - lufs0) / 20);
   for (const x of ch) for (let i = 0; i < x.length; i++) x[i] *= gain;

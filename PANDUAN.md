@@ -80,7 +80,7 @@ Skor di bawah 60% berarti jelas berbeda. Di atas 75% terlalu mirip.
 python generate.py presets/nebula.toml
 ```
 
-Hasilnya muncul di folder `out/`. Lama render sekitar 5–6 menit untuk 60 menit musik, tergantung kecepatan komputer.
+Hasilnya muncul di folder `out/`. Lama render sekitar 10 menit untuk 60 menit musik di komputer 4 core (termasuk MP3), tergantung kecepatan komputer.
 
 | File | Kegunaan |
 |---|---|
@@ -200,7 +200,18 @@ Tips: di file preset, angka boleh ditulis sebagai rentang `[0.4, 0.6]`, dan prog
 
 ---
 
-## 9. Kalau ada masalah
+## 9. Pemeriksaan sebelum rilis
+
+```bash
+python cek_rilis.py
+```
+Merender semua preset (4 menit masing-masing) dan memeriksa: volume tepat di target, puncak aman (juga
+setelah jadi MP3), awal lagu mulai dari hening, akhir lagu fade-out, tidak ada klik, keseimbangan suara,
+dan tidak ada nada sumbang. File hasil ekspor Studio web juga bisa diperiksa: `python cek_rilis.py --wav file.wav`.
+
+---
+
+## 10. Kalau ada masalah
 
 | Gejala | Solusi |
 |---|---|

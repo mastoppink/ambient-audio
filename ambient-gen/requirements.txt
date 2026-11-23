@@ -4,3 +4,4 @@ soundfile
 pedalboard
 pyloudnorm
 numba
+matplotlib

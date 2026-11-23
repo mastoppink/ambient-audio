@@ -206,5 +206,8 @@ def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True, 
             f.write(text + "\n")
         with open(f"{stem}.qc.json", "w") as f:
             json.dump({k: v for k, v in r.items() if not k.startswith("_")}, f, indent=1)
-        qc_mod.plot(r, f"{stem}.qc.png")
+        try:   # grafik opsional: render tetap selesai walau matplotlib tidak terpasang
+            qc_mod.plot(r, f"{stem}.qc.png")
+        except ImportError:
+            pass
         return text
