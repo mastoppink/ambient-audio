@@ -1,0 +1,50 @@
+# Deep Space: misterius dan sedikit gelap. Untuk fokus di malam hari.
+name = "Deep Space"
+seed = 5001
+duration_min = 60
+
+[key]
+tonic = "C"
+mode = "phrygian"
+
+[mix]
+drone = 0.8
+pad = 0.5
+melody = 0.16
+texture = 0.04
+
+[pad]
+brightness = [0.3, 0.42]
+width = 0.75
+movement = 0.3
+life = 0.45
+chord_seconds = [80, 130]
+chord_weights = { II = 3.0, iii = 2.0, vii = 0.4 }   # bII = warna khas Phrygian
+
+[drone]
+brightness = 0.2
+sub = 0.45
+
+[melody]
+timbre = "glass"
+phrases = 0.15
+consonance = 1.0
+density = 0.25
+decay = 12.0
+register = 0.35
+
+[texture]
+brightness = 0.35
+
+[space]
+reverb_decay = 16.0
+reverb_mix = 0.65
+early = 0.3
+motion = 0.6
+
+[form]
+amount = 0.5
+period_min = [15, 28]
+
+[master]
+target_lufs = -14.0

@@ -1,0 +1,39 @@
+# Meditation: statis dan tenang. Untuk meditasi atau yoga. Tanpa melodi.
+name = "Meditation"
+seed = 9001
+duration_min = 60
+
+[key]
+tonic = "D"
+mode = "dorian"
+
+[mix]
+drone = 0.85
+pad = 0.55
+melody = 0.0     # tanpa melodi: tidak ada yang "menarik perhatian"
+texture = 0.025
+
+[pad]
+brightness = [0.35, 0.45]
+width = 0.5
+movement = 0.15
+life = 0.5
+chord_seconds = [150, 240]
+chord_weights = { I = 4.0, V = 2.0, iii = 0.5, vii = 0 }
+
+[drone]
+brightness = 0.3
+sub = 0.35
+
+[texture]
+brightness = 0.3
+
+[space]
+reverb_decay = 13.0
+reverb_mix = 0.6
+
+[form]
+amount = 0.15    # hampir datar
+
+[master]
+target_lufs = -15.0

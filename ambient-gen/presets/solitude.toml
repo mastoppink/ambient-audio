@@ -1,0 +1,47 @@
+# Solitude: sendu dan reflektif.
+name = "Solitude"
+seed = 8001
+duration_min = 60
+
+[key]
+tonic = "B"
+mode = "aeolian"
+
+[mix]
+drone = 0.7
+pad = 0.55
+melody = 0.13
+texture = 0.06
+
+[pad]
+brightness = [0.38, 0.5]
+width = 0.6
+movement = 0.2
+life = 0.6
+chord_seconds = [120, 180]
+chord_weights = { vi = 2.5, vii = 0.5 }   # bVI = warna sendu Aeolian
+
+[drone]
+brightness = 0.25
+
+[melody]
+timbre = "piano"
+phrases = 0.1
+consonance = 1.0
+density = 0.1
+decay = 13.0
+register = 0.45
+
+[texture]
+brightness = 0.4
+
+[space]
+reverb_decay = 14.0
+reverb_mix = 0.6
+
+[form]
+amount = 0.55
+period_min = [18, 30]
+
+[master]
+target_lufs = -15.0

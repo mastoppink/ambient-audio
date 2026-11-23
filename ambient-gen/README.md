@@ -126,3 +126,16 @@ Render sekitar 1,7x lebih lambat dari milestone 4 (harmonik & drift lebih banyak
   nada masih berdengung saat pergantian. Deep Sleep tidak berubah (consonance 0, hasil identik).
 - `python harmony_check.py out/x.events.json` menghitung bentrokan. 5 seed x 60 menit:
   Nebula 13% → 0%, Drift 9% → 0%.
+
+## Daftar preset
+| Preset | Kunci | Mood | Melodi | LUFS |
+|---|---|---|---|---|
+| Nebula | D Lydian | luas, terang | bel kaca + shimmer | -14 |
+| Drift | E/A Dorian | sendu, hangat (fokus) | kalimba | -14 |
+| Deep Sleep | D Aeolian | gelap, lambat (tidur) | piano jauh | -16 |
+| Aurora | F Lydian | hangat, penuh harapan (pagi) | bel kaca + shimmer kuat | -14 |
+| Deep Space | C Phrygian | misterius, gelap (fokus malam) | bel kaca sangat jarang, reverb 16 s | -14 |
+| Orbit | G Mixolydian | ringan, melayang (belajar/kerja) | kalimba, frasa sering | -14 |
+| Starlight Lullaby | A Ionian | lembut, manis (tidur anak) | piano jauh | -16 |
+| Solitude | B Aeolian | sendu, reflektif | piano sangat jarang, chord 2-3 menit | -15 |
+| Meditation | D Dorian | statis (meditasi/yoga) | tanpa melodi | -15 |
