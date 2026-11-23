@@ -1,6 +1,6 @@
 # Spacenight — Rencana Ambient Generatif
 
-Membuat musik ambient luar angkasa berdurasi panjang secara programatik dengan Python, dari sintesis sampai video.
+Membuat musik ambient luar angkasa berdurasi panjang secara programatik dengan Python, dari sintesis sampai file audio final.
 
 ## Fase 1: Konsep dan parameter
 - **Skala:** D Lydian (D E F# G# A B C#). Lydian terdengar "luas"; D Dorian sebagai alternatif yang lebih gelap.
@@ -43,10 +43,7 @@ Target loudness: −16 s.d. −14 LUFS.
 - Simpan WAV 24-bit → konversi ke FLAC/MP3
 - Fade-in 20–30 s, fade-out 30–60 s
 
-## Fase 7: Video (opsional)
-Gambar statis milik sendiri + `zoompan` pelan di `ffmpeg`, gabung dengan audio.
-
-## Fase 8: Kontrol kualitas
+## Fase 7: Kontrol kualitas
 - Dengarkan di speaker dan headphone, termasuk volume pelan
 - Cek spektrogram: tidak ada clipping, tidak ada penumpukan di 200–500 Hz
 - Cek mono-compatibility (chorus dan detune bisa saling meniadakan)
@@ -59,7 +56,7 @@ numpy, scipy   → sintesis dan DSP
 pedalboard     → reverb, chorus, delay, limiter
 soundfile      → baca/tulis WAV
 pyloudnorm     → ukur loudness
-ffmpeg         → konversi dan video
+ffmpeg         → konversi ke MP3/FLAC
 ```
 
 ## Struktur proyek
@@ -71,7 +68,6 @@ ambient-gen/
 ├── fx.py           # rantai efek pedalboard
 ├── render.py       # render per blok + overlap
 ├── master.py       # loudness + fade
-├── make_video.sh   # ffmpeg
 └── tests/          # cek panjang, tidak ada NaN, peak < 0 dBFS
 ```
 
@@ -81,4 +77,6 @@ ambient-gen/
 3. ✅ Ketiga lapisan + tekstur + FX, 10 menit
 3.5. ✅ Preset TOML, kontrol makro, mode, variasi per seed
 4. ✅ Render blok paralel + master streaming + bentuk makro, 60 menit (~3 menit render)
-5. Video
+5. Optimasi kualitas audio (sedang dibahas)
+
+_Video dikeluarkan dari rencana untuk saat ini; bisa ditambahkan lagi nanti._
