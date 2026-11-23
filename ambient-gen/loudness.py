@@ -41,3 +41,23 @@ class LoudnessMeter:
         rel = -0.691 + 10 * np.log10(g.mean()) - 10
         g = blocks[(lk > -70) & (lk > rel)]
         return -0.691 + 10 * np.log10(g.mean())
+
+    # --- statistik tambahan untuk laporan QC ---
+    def short_term(self):
+        """Loudness jangka pendek (jendela 3 s, langkah 100 ms), LUFS."""
+        e = np.asarray(self.sub)
+        if len(e) < 30:
+            return np.array([])
+        st = np.convolve(e, np.ones(30) / 30, mode="valid")
+        return -0.691 + 10 * np.log10(st + 1e-20)
+
+    def lra(self):
+        """Loudness range (EBU Tech 3342): sebaran loudness jangka pendek, 10%..95%."""
+        st = self.short_term()
+        st = st[st > -70]
+        if not len(st):
+            return 0.0
+        e = 10 ** ((st + 0.691) / 10)
+        rel = -0.691 + 10 * np.log10(e.mean()) - 20
+        st = st[st > rel]
+        return float(np.percentile(st, 95) - np.percentile(st, 10))

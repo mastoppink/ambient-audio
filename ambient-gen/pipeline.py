@@ -91,20 +91,26 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     lim = fx.StreamLimiter(p["ceiling_db"])
     meter2 = LoudnessMeter(SR)
     with sf.SoundFile(tmp) as src, sf.SoundFile(f"{stem}.wav", "w", SR, 2, "PCM_24") as dst:
-        for block in src.blocks(blocksize=seg, dtype="float64"):
-            y = lim.push(block * gain)
+        drng = np.random.default_rng([seed, 7])
+        lsb = 2.0 ** -23   # 1 LSB untuk 24-bit
+
+        def emit(y):
             meter2.add(y)
-            dst.write(y)
-        y = lim.flush()
-        meter2.add(y)
-        dst.write(y)
+            # dither TPDF +-1 LSB: kuantisasi ke 24-bit jadi noise halus, bukan distorsi
+            # (penting pada fade-out panjang yang sangat pelan)
+            d = (drng.random(y.shape) - drng.random(y.shape)) * lsb
+            dst.write(np.clip(y + d, -1, 1 - lsb))
+
+        for block in src.blocks(blocksize=seg, dtype="float64"):
+            emit(lim.push(block * gain))
+        emit(lim.flush())
     os.remove(tmp)
     lufs = meter2.integrated()
     log(f"  pass 2 selesai, {time.time() - t0:.0f}s total")
     return events, lufs
 
 
-def save_meta(stem, events, resolved_toml, lufs, mp3=True):
+def save_meta(stem, events, resolved_toml, lufs, mp3=True, flac=False, qc=True):
     with open(f"{stem}.toml", "w") as f:
         f.write(f"# loudness terukur: {lufs:.1f} LUFS\n" + resolved_toml)
     with open(f"{stem}.events.json", "w") as f:
@@ -112,3 +118,18 @@ def save_meta(stem, events, resolved_toml, lufs, mp3=True):
     if mp3 and shutil.which("ffmpeg"):
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", f"{stem}.wav",
                         "-b:a", "192k", f"{stem}.mp3"], check=True)
+    if flac:   # lossless, ~55-60% ukuran WAV
+        with sf.SoundFile(f"{stem}.wav") as src, \
+                sf.SoundFile(f"{stem}.flac", "w", SR, 2, "PCM_24", format="FLAC") as dst:
+            for b in src.blocks(blocksize=SR * 30, dtype="int32"):
+                dst.write(b)
+    if qc:
+        import qc as qc_mod
+        r = qc_mod.analyze(f"{stem}.wav")
+        text = qc_mod.report(r)
+        with open(f"{stem}.qc.txt", "w") as f:
+            f.write(text + "\n")
+        with open(f"{stem}.qc.json", "w") as f:
+            json.dump({k: v for k, v in r.items() if not k.startswith("_")}, f, indent=1)
+        qc_mod.plot(r, f"{stem}.qc.png")
+        return text

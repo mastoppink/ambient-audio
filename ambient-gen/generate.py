@@ -30,6 +30,8 @@ def main():
     ap.add_argument("--outdir", default="out")
     ap.add_argument("--workers", type=int, help="jumlah proses paralel (default: semua core)")
     ap.add_argument("--no-mp3", action="store_true")
+    ap.add_argument("--flac", action="store_true", help="juga simpan FLAC (lossless)")
+    ap.add_argument("--no-qc", action="store_true", help="lewati laporan kualitas")
     ap.add_argument("--dry-run", action="store_true", help="tampilkan nilai final tanpa render")
     a = ap.parse_args()
 
@@ -59,7 +61,11 @@ def main():
         events, lufs = pipeline.produce(stem, total, seed, form=r.get("form"),
                                         form_total=max(full, total), stems=a.stems,
                                         workers=a.workers)
-        pipeline.save_meta(stem, events, text, lufs, mp3=not a.no_mp3)
+        qc_text = pipeline.save_meta(stem, events, text, lufs, mp3=not a.no_mp3, flac=a.flac,
+                                     qc=not a.no_qc)
+        if qc_text:
+            print("\n".join("  " + l for l in qc_text.splitlines()[3:] if "[CEK" in l or "[MASALAH" in l)
+                  or "  QC: semua OK")
         print(f"  -> {stem}.wav/.mp3/.toml  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
 
 
