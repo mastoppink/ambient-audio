@@ -514,8 +514,8 @@ class Warmth:
     def _level(self, x):
         """Follower RMS jangka panjang (per sampel, state dibawa antar potongan)."""
         e = (x ** 2).mean(axis=1)
-        if self.env is None:
-            self.env = max(float(e.mean()), 1e-8)
+        if self.env is None:   # titik awal dari 4096 sampel pertama: tidak bergantung ukuran potongan
+            self.env = max(float(e[:4096].mean()), 1e-8)
         y, zf = lfilter([1 - self.coef], [1, -self.coef], e, zi=[self.env * self.coef])
         self.env = float(y[-1])
         return np.sqrt(np.maximum(y, 1e-10))[:, None]
