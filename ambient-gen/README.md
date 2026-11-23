@@ -119,3 +119,12 @@ dengan sumber acak [seed, 20, ember], jadi render per segmen identik. Kepadatan 
 babak. EQ: high-pass 350 Hz, high-shelf -3 dB di 6 kHz; kirim ke reverb 0,95.
 Pada Nebula (mix.cloud 0,18): pita mid +1,1 dB, presence/air tidak naik, korelasi L/R 0,57 → 0,51 (lebih lebar),
 waktu render tidak bertambah. Versi web belum memiliki lapisan ini.
+
+## Piano (model fisik)
+
+`synth._piano_note`: senar kaku dengan inharmonisitas per register (B ≈ 0,00035 di C4, naik ke nada tinggi),
+spektrum dari posisi palu (~1/7-1/8.5 senar → lubang di parsial ke-7/8) dan velocity (nada keras ~12 dB lebih
+banyak energi di atas 1,5 kHz), 2-3 senar unison (0,2-0,8 cent, senar tengah dominan → denyut median ±3,8 dB),
+peluruhan dua tahap per parsial yang lebih panjang di nada rendah (C3 > 30 s, C6 ~12 s sampai -40 dB),
+bunyi palu ~3 ms, dan konvolusi dengan IR papan suara 120 ms. Nada dihitung utuh lalu diambil bagiannya
+(render per segmen identik). Biaya: +8% waktu render untuk preset ber-piano. Versi web masih memakai piano lama.

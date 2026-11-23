@@ -6,7 +6,7 @@ per segmen secara paralel (milestone 4). Semua fungsi waktu (LFO, envelope, kurv
 memakai waktu absolut; filter IIR "dipanaskan" dengan pre-roll pendek.
 """
 import numpy as np
-from scipy.signal import sosfilt, sosfilt_zi
+from scipy.signal import butter, sosfilt, sosfilt_zi
 
 from config import SAMPLE_RATE as SR
 
@@ -227,9 +227,85 @@ def texture_segment(t_start, n, seed, seg, p, shape=None, mult=None):
     return np.stack(chans, axis=1) * 0.35   # ~ setara level normalisasi lama
 
 
+# ---------- piano: model fisik sederhana ----------
+_BODY_IR = None
+
+
+def _soundboard_ir():
+    """Respons "tubuh" piano (papan suara + rangka) yang pendek: beberapa resonansi kayu teredam
+    + noise berwarna yang meluruh ~40 ms. Dibuat sekali (tetap untuk semua nada)."""
+    global _BODY_IR
+    if _BODY_IR is None:
+        r = np.random.default_rng(424242)
+        n = int(0.12 * SR)
+        t = np.arange(n) / SR
+        ir = np.zeros(n)
+        for fr, q, g in ((95, 12, 0.8), (180, 14, 0.7), (290, 16, 0.6), (480, 18, 0.45), (820, 20, 0.3),
+                         (1350, 22, 0.2), (2400, 25, 0.12)):
+            ir += g * np.sin(2 * np.pi * fr * t) * np.exp(-np.pi * fr / q * t)
+        noise = sosfilt(butter(2, [150, 4000], btype="band", fs=SR, output="sos"), r.standard_normal(n))
+        ir += 0.6 * noise * np.exp(-t / 0.04)
+        ir[0] += 2.5                                   # bunyi langsung dari senar
+        _BODY_IR = ir / np.sqrt((ir ** 2).sum())
+    return _BODY_IR
+
+
+def _piano_note(midi, f, total_n, decay, vel, seed):
+    """Satu nada piano (mono, utuh). Fisika yang ditiru:
+    - inharmonisitas senar kaku B, makin besar di nada tinggi (f_k = k f sqrt(1 + B k^2))
+    - posisi palu ~1/7 senar: parsial ke-7, ke-14, ... hampir hilang (warna khas piano)
+    - nada keras lebih terang (kemiringan spektrum bergantung velocity)
+    - 2-3 senar per nada, beda 0,3-1,5 cent -> denyut pelan
+    - peluruhan dua tahap (cepat lalu panjang), lebih lama di nada rendah, parsial atas lebih cepat
+    - bunyi palu sangat singkat + resonansi papan suara (konvolusi IR pendek)
+    `decay`: waktu peluruhan (detik) acuan di C4; disesuaikan per register.
+    """
+    from scipy.signal import fftconvolve
+    r = np.random.default_rng(seed)
+    n = total_n
+    t = np.arange(n) / SR
+    B = float(np.clip(0.00035 * 2 ** ((midi - 60) / 12 * 1.3), 4e-5, 0.02))
+    beta = r.uniform(1 / 8.5, 1 / 6.8)                 # posisi palu
+    v = float(np.clip(vel, 0.2, 1.0)) * r.uniform(0.85, 1.0)
+    tilt = 2.3 - 1.2 * v                                # pelan -> jauh lebih gelap, keras -> terang
+    tau = decay * 2 ** (-(midi - 60) / 22)              # nada rendah berdengung lebih lama
+    n_str = 3 if midi >= 46 else 2
+    # senar unison disetel rapat (0,2-0,8 cent) dan senar tengah paling kuat -> denyut halus, bukan gelombang
+    detunes = [0.0, r.uniform(0.2, 0.8), -r.uniform(0.2, 0.8)][:n_str]
+    gains = [1.0, 0.45, 0.3][:n_str]
+    x = np.zeros(n)
+    K = int(min(48, 9000 / f))
+    for k in range(1, K + 1):
+        fk = f * k * np.sqrt(1 + B * k * k)
+        if fk > 9000:
+            break
+        amp = abs(np.sin(np.pi * k * beta)) / k ** tilt
+        if amp < 1e-4:
+            continue
+        tk = tau / (1 + 0.11 * (k - 1) ** 1.3)
+        # hitung parsial hanya sampai ~-80 dB relatif awalnya (parsial atas habis dalam beberapa detik)
+        m = int(min(n, tk * np.log(1e4 * max(amp * 50, 1.0)) * SR))
+        phs = [r.uniform(0, 2 * np.pi) for _ in detunes]
+        if m <= 0:
+            continue
+        tt = t[:m]
+        env = 0.65 * np.exp(-tt / (tk * 0.11)) + 0.35 * np.exp(-tt / tk)
+        part = np.zeros(m)
+        for c, p0, gs in zip(detunes, phs, gains):
+            part += gs * np.sin(2 * np.pi * fk * 2 ** (c / 1200) * tt + p0)
+        x[:m] += amp * env * part / sum(gains)
+    # bunyi palu: semburan noise ~3 ms, lebih terang saat keras
+    hl = int(0.015 * SR)
+    hammer = sosfilt(butter(2, [300, 1500 + 3500 * v], btype="band", fs=SR, output="sos"), r.standard_normal(hl))
+    x[:hl] += 0.05 * v * hammer * np.exp(-np.arange(hl) / (0.003 * SR))
+    # papan suara
+    x = fftconvolve(x, _soundboard_ir())[:n]
+    return x / 1.6
+
+
 # ---------- suara melodi: beberapa timbre ----------
 # disamakan kira-kira ke loudness yang sama (diukur: RMS rangkaian 3 nada)
-TIMBRE_GAIN = {"soft": 1.0, "glass": 0.9, "kalimba": 1.08, "piano": 2.2}
+TIMBRE_GAIN = {"soft": 1.0, "glass": 0.9, "kalimba": 1.08, "piano": 2.75}
 
 def melody_voice(timbre, midi, duration, rng, decay, pan, vel=1.0, offset=0, n=None, attack=1.2):
     """Nada melodi stereo. Semua angka acak diambil di depan -> render per segmen identik.
@@ -238,7 +314,7 @@ def melody_voice(timbre, midi, duration, rng, decay, pan, vel=1.0, offset=0, n=N
       soft  - sinus lembut dengan attack pelan (suara lama)
       glass - bel kaca: FM dengan rasio tidak harmonis, kilau yang cepat meredup
       kalimba - petikan lembut: fundamental + parsial tinggi yang sangat singkat
-      piano - piano jauh & lembut: parsial sedikit tidak harmonis, dua senar, decay dua tahap
+      piano - piano (model fisik): senar kaku, posisi palu, 2-3 senar, peluruhan per register, papan suara
     """
     total_n = int(duration * SR)
     n = total_n - offset if n is None else n
@@ -268,19 +344,12 @@ def melody_voice(timbre, midi, duration, rng, decay, pan, vel=1.0, offset=0, n=N
         env = np.exp(-t / (decay * 0.55))
         a_s = 0.014
     elif timbre == "piano":
-        B = 0.0004
-        x = np.zeros_like(t)
-        for k in range(1, 9):
-            fk = f * k * np.sqrt(1 + B * k * k)
-            if fk > 9000:
-                break
-            amp = k ** -1.6 * np.exp(-(k - 1) * 0.25)          # palu lembut: parsial atas kecil
-            dk = decay / (1 + 0.45 * (k - 1))
-            for s, c in ((0, 0.0), (1, 0.8)):                   # dua senar, beda 0.8 cent
-                x += 0.5 * amp * np.sin(2 * np.pi * fk * 2 ** (c / 1200) * t + ph[k + s]) \
-                    * (0.55 * np.exp(-t / (dk * 0.12)) + 0.45 * np.exp(-t / dk))
+        # model fisik sederhana (lihat _piano_note); nada dihitung utuh lalu diambil bagiannya,
+        # supaya render per segmen identik
+        full = _piano_note(midi, f, total_n, decay, vel, int(rng.integers(1 << 31)))
+        x = full[idx]
         env = np.ones_like(t)
-        a_s = 0.01
+        a_s = 0.002
     else:  # soft
         x = (np.sin(2 * np.pi * f * t + ph[0])
              + 0.3 * np.sin(2 * np.pi * f0 * 2 * t + ph[1]) * np.exp(-t / (decay * 0.4))
