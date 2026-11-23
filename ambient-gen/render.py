@@ -65,15 +65,3 @@ def render_segment(events, seg_start, seg_n, seed, seg_index=0):
         t = (seg_start + np.arange(seg_n)) / SR
         out["texture"] *= np.clip(t / 20, 0, 1)[:, None]
     return {k: v.astype(np.float32) for k, v in out.items()}
-
-
-def render_layers(events, total, seed):
-    """Seluruh lagu sekaligus (untuk durasi pendek / milestone lama)."""
-    n = int(total * SR)
-    out = render_segment(events, 0, n, seed)
-    return {k: v.astype(np.float64) for k, v in out.items() if k != "texture"}
-
-
-def render_events(events, total, seed):
-    """Mix kering drone + pad + melodi (dipakai milestone 2)."""
-    return sum(render_layers(events, total, seed).values())

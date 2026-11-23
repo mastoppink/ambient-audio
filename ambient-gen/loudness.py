@@ -1,7 +1,7 @@
 """Pengukur loudness terintegrasi (ITU-R BS.1770-4 / EBU R128) yang bisa diumpan per potongan.
 pyloudnorm butuh seluruh audio di memori; ini tidak."""
 import numpy as np
-from scipy.signal import lfilter, lfilter_zi
+from scipy.signal import lfilter
 
 # koefisien K-weighting untuk 48 kHz (BS.1770)
 _B1 = [1.53512485958697, -2.69169618940638, 1.19839281085285]

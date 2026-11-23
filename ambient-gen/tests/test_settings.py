@@ -1,7 +1,6 @@
-import sys, pathlib, tomllib
+import sys, pathlib
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import numpy as np
 import pytest
 import config
 import settings

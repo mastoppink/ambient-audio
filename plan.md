@@ -60,16 +60,7 @@ ffmpeg         → konversi ke MP3/FLAC
 ```
 
 ## Struktur proyek
-```
-ambient-gen/
-├── config.py       # key, skala, durasi, seed, sample rate
-├── synth.py        # oscillator, envelope, filter, LFO
-├── compose.py      # chord, loop, nada acak → daftar event
-├── fx.py           # rantai efek pedalboard
-├── render.py       # render per blok + overlap
-├── master.py       # loudness + fade
-└── tests/          # cek panjang, tidak ada NaN, peak < 0 dBFS
-```
+Lihat `ambient-gen/README.md` (teknis) dan `PANDUAN.md` (pemakaian).
 
 ## Milestone
 1. ✅ Satu nada pad 30 detik terdengar bagus
@@ -79,4 +70,6 @@ ambient-gen/
 4. ✅ Render blok paralel + master streaming + bentuk makro, 60 menit (~3 menit render)
 5. ✅ Optimasi kualitas audio: laporan QC, pad analog, EQ per lapisan, reverb baru
 
-_Video dikeluarkan dari rencana untuk saat ini; bisa ditambahkan lagi nanti._
+6. ✅ Melodi (bel kaca, kalimba, piano, frasa, tanpa nada sumbang), 9 preset, MP3 siap YouTube, panduan
+
+_Video dibuat terpisah di aplikasi lain._

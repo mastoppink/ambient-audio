@@ -31,6 +31,3 @@ def make_shape(total, seed, f):
 
     return shape
 
-
-def flat(t):
-    return np.full(np.shape(t), 0.5)

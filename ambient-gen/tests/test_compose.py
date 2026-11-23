@@ -1,7 +1,6 @@
 import os, sys, pathlib
 os.chdir(pathlib.Path(__file__).resolve().parents[1])
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-import numpy as np
 import config
 from compose import compose, voice_lead
 

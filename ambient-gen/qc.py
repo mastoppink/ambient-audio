@@ -15,6 +15,7 @@ Yang diukur dan kenapa penting:
 - Kecerahan (spectral centroid) dari waktu ke waktu.
 """
 import argparse
+import os
 import json
 import sys
 
@@ -194,13 +195,13 @@ def main():
     a = ap.parse_args()
     profile = a.profile
     if profile is None:   # ambil dari preset final yang disimpan di samping audio
-        import os, tomllib
-        t = a.wav[:-4] + ".toml"
+        import tomllib
+        t = os.path.splitext(a.wav)[0] + ".toml"
         profile = tomllib.load(open(t, "rb")).get("qc", {}).get("profile", "default") \
             if os.path.exists(t) else "default"
     r = analyze(a.wav)
     other = analyze(a.compare) if a.compare else None
-    stem = a.wav[:-4]
+    stem = os.path.splitext(a.wav)[0]
     with open(stem + ".qc.json", "w") as f:
         json.dump({k: v for k, v in r.items() if not k.startswith("_")}, f, indent=1)
     plot(r, stem + ".qc.png", other)

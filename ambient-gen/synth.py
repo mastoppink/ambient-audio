@@ -60,18 +60,6 @@ def sine_at(freq, idx, phase0=0.0):
     return np.sin((2 * np.pi * freq / SR) * idx + phase0)
 
 
-def sine(freq, n, phase0=0.0):
-    return sine_at(freq, np.arange(n), phase0)
-
-
-def saw_additive(freq, n, phase0, harmonics):
-    return _read_table(_wavetable(freq, harmonics, "saw"), freq, np.arange(n), phase0)
-
-
-def triangle_additive(freq, n, phase0, harmonics):
-    return _read_table(_wavetable(freq, harmonics, "tri"), freq, np.arange(n), phase0)
-
-
 # ---------- envelope & LFO ----------
 def envelope_at(idx, total_n, attack, release):
     """Attack/release kurva sinus-kuadrat, dievaluasi pada indeks sampel absolut."""
@@ -86,17 +74,9 @@ def envelope_at(idx, total_n, attack, release):
     return env
 
 
-def envelope(n, attack, release):
-    return envelope_at(np.arange(n), n, attack, release)
-
-
 def lfo_at(t, period, phase0=0.0):
     """LFO sinus 0..1, t dalam detik."""
     return 0.5 + 0.5 * np.sin(2 * np.pi * t / period + phase0)
-
-
-def lfo(n, period, phase0=0.0):
-    return lfo_at(np.arange(n) / SR, period, phase0)
 
 
 # ---------- filter biquad (RBJ), koefisien dihitung vektor untuk semua blok ----------
@@ -200,29 +180,6 @@ def pad_voice(midi, duration, rng, p, offset=0, n=None, t0=0.0, shape=None):
     out = np.stack(chans, axis=1) * envelope_at(idx, total_n, p["attack"], p["release"])[:, None]
     out = out[offset - start:]
     return _fit(out, n)
-
-
-def bell_voice(midi, duration, rng, attack, decay, pan, offset=0, n=None):
-    """Nada melodi lembut: sinus + sedikit harmonik, decay eksponensial."""
-    total_n = int(duration * SR)
-    n = total_n - offset if n is None else n
-    f0 = midi_to_hz(midi)
-    ph = rng.uniform(0, 6.28, 3)
-    det = 2 ** (rng.uniform(-3, 3) / 1200)
-    idx = np.arange(offset, min(offset + n, total_n))
-    t = idx / SR
-    x = (sine_at(f0 * det, idx, ph[0])
-         + 0.3 * sine_at(f0 * 2, idx, ph[1]) * np.exp(-t / (decay * 0.4))
-         + 0.08 * sine_at(f0 * 3.0, idx, ph[2]) * np.exp(-t / (decay * 0.2)))
-    a = int(attack * SR)
-    tail = int(0.5 * SR)
-    env = np.exp(-t / decay)
-    m = idx < a
-    env[m] *= np.sin(idx[m] / a * np.pi / 2) ** 2
-    m = idx >= total_n - tail
-    env[m] *= (total_n - idx[m]) / tail
-    x *= env
-    return _fit(np.stack([x * np.cos(pan * np.pi / 2), x * np.sin(pan * np.pi / 2)], axis=1), n)
 
 
 def _fit(x, n):

@@ -1,6 +1,8 @@
-"""Rantai efek: chorus, delay, reverb konvolusi, limiter."""
+"""Rantai efek: reverb konvolusi, chorus, delay, EQ, shimmer, limiter (streaming).
+
+reverb() dan limiter() versi sekaligus dipertahankan sebagai pembanding di tes."""
 import numpy as np
-from pedalboard import Pedalboard, Chorus, Delay, HighpassFilter
+from pedalboard import Pedalboard, Chorus, Delay
 from scipy.signal import oaconvolve, butter, sosfilt
 
 import config
@@ -59,19 +61,6 @@ def reverb(x, ir):
     return np.stack([oaconvolve(x[:, c], ir[:, c])[: len(x)] for c in range(2)], axis=1)
 
 
-def _board(board, x):
-    return board(x.T.astype(np.float32), SR).T.astype(np.float64)
-
-
-def chorus(x):
-    return _board(Pedalboard([Chorus(rate_hz=0.12, depth=0.15, centre_delay_ms=9, feedback=0.0, mix=0.35)]), x)
-
-
-def delay(x, p):
-    return _board(Pedalboard([Delay(delay_seconds=p["delay_seconds"], feedback=p["delay_feedback"],
-                                    mix=p["delay_mix"])]), x)
-
-
 def limiter(x, ceiling_db=-1.0, lookahead=0.005, release=0.25):
     """Limiter lookahead sederhana. Tanpa makeup gain (Limiter pedalboard menaikkan level
     sendiri sehingga loudness meleset)."""
@@ -92,16 +81,6 @@ def limiter(x, ceiling_db=-1.0, lookahead=0.005, release=0.25):
     g = np.minimum(g, 1 - np.repeat(env, hop)[: len(g)])
     g = uniform_filter1d(g, size=la)  # haluskan transisi
     return np.clip(x * g[:, None], -c, c)
-
-
-def master(x, p):
-    import pyloudnorm as pyln
-    x = _board(Pedalboard([HighpassFilter(30.0)]), x)
-    meter = pyln.Meter(SR)
-    for _ in range(3):  # limiter mengubah loudness sedikit; ulangi sampai pas
-        x = x * 10 ** ((p["target_lufs"] - meter.integrated_loudness(x)) / 20)
-        x = limiter(x, p["ceiling_db"])
-    return x, meter.integrated_loudness(x)
 
 
 # ---------- versi streaming (milestone 4): state dibawa antar potongan ----------
@@ -143,16 +122,6 @@ def stream_chorus():
 def stream_delay(p):
     return StreamBoard(Pedalboard([Delay(delay_seconds=p["delay_seconds"],
                                          feedback=p["delay_feedback"], mix=p["delay_mix"])]))
-
-
-class StreamHighpass:
-    def __init__(self, fc=30.0):
-        self.sos = butter(2, fc, btype="high", fs=SR, output="sos")
-        self.zi = np.zeros((self.sos.shape[0], 2, 2))
-
-    def __call__(self, x):
-        y, self.zi = sosfilt(self.sos, x, axis=0, zi=self.zi)
-        return y
 
 
 class StreamLimiter:
