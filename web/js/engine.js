@@ -30,6 +30,7 @@ export class Engine {
     this.scheduledChord = 0; this.droneChunk = 0; this.texChunk = 0; this.nodes = new Set();
     this.listeners = [];
     this._build();
+    if (!offline && start == null) this.t0 = Math.max(this.t0, ctx.currentTime + 0.1);
     this.applyLevels();
   }
 
@@ -152,7 +153,7 @@ export class Engine {
       const per = [rng.uniform(5, 23), rng.uniform(5, 23), rng.uniform(5, 23)], ph = per.map(() => rng.uniform(0, 6.28));
       const o = ctx.createOscillator(); o.setPeriodicWave(wave); o.frequency.value = f0;
       const drift = p.drift || 0;
-      o.detune.setValueCurveAtTime(curve(dur, (x) => cents + (drift / 3) * per.reduce((a, P_, j) => a + Math.sin((2 * Math.PI * x) / P_ + ph[j]), 0)), t, dur);
+      this._curve(o.detune, t, dur, (x) => cents + (drift / 3) * per.reduce((a, P_, j) => a + Math.sin((2 * Math.PI * x) / P_ + ph[j]), 0));
       const g = ctx.createGain(); g.gain.value = 2 / k;
       const pan = ctx.createStereoPanner(); pan.pan.value = (p.spread ?? 0.35) * spread;
       o.connect(g).connect(pan).connect(bus);
@@ -169,17 +170,17 @@ export class Engine {
     bus.connect(sp);
     for (let ch = 0; ch < 2; ch++) {
       const flt = ctx.createBiquadFilter(); flt.type = "lowpass"; flt.Q.value = p.q ?? 0.7071;
-      flt.frequency.setValueCurveAtTime(curve(dur, (x) => {
+      this._curve(flt.frequency, t, dur, (x) => {
         const m = 0.5 + 0.5 * Math.sin((2 * Math.PI * x) / p.lfoPeriod + lfoPh + ch * 0.4);
         const bright = shapeBright ? 2 ** (shapeBright * (this.shape(songT + x) - 0.5)) : 1;
         return Math.min(ctx.sampleRate * 0.45, p.cutMin * (p.cutMax / p.cutMin) ** m * bright);
-      }), t, dur);
+      });
       sp.connect(flt, ch); flt.connect(mg, 0, ch);
     }
     const env = ctx.createGain(); env.gain.value = 0;
     const a = Math.min(attack, dur / 2), r = Math.min(release, dur - a);
     const fade = fadeShape === "sin" ? (u) => Math.sin((u * Math.PI) / 2) : (u) => Math.sin((u * Math.PI) / 2) ** 2;
-    env.gain.setValueCurveAtTime(curve(dur, (x) => (x < a ? fade(x / a) : x > dur - r ? fade(Math.max(0, (dur - x) / r)) : 1)), t, dur);
+    this._curve(env.gain, t, dur, (x) => (x < a ? fade(x / a) : x > dur - r ? fade(Math.max(0, (dur - x) / r)) : 1));
     mg.connect(env).connect(dest);
     for (const o of oscs) { o.start(t); o.stop(t + dur + 0.05); this._track(o); }
   }
@@ -227,6 +228,15 @@ export class Engine {
     for (const o of oscs) { o.start(t); o.stop(t + len); this._track(o); }
   }
 
+  /** setValueCurveAtTime yang aman: bagian yang sudah lewat dipotong (browser akan memundurkan
+   *  waktu mulai ke "sekarang" dan kurva bisa bertabrakan dengan kurva berikutnya). */
+  _curve(param, start, dur, fn) {
+    const now = this.offline ? 0 : this.ctx.currentTime + 0.02;
+    const skip = Math.max(0, now - start);
+    if (skip >= dur - 0.05) return;
+    param.setValueCurveAtTime(curve(dur - skip, (x) => fn(x + skip)), start + skip, dur - skip);
+  }
+
   _track(node) { this.nodes.add(node); node.onended = () => this.nodes.delete(node); }
 
   // ---------- penjadwalan ----------
@@ -264,18 +274,18 @@ export class Engine {
         if (dur <= 0) break;
         for (let ch = 0; ch < 2; ch++) {
           const ph = this.texPh[ch];
-          this.texBand[ch].frequency.setValueCurveAtTime(curve(dur, (x) => {
+          this._curve(this.texBand[ch].frequency, this.t0 + st, dur, (x) => {
             const tt = st + x;
             const m = T_.periods.reduce((a, per, i) => a + 0.5 + 0.5 * Math.sin((2 * Math.PI * tt) / per + ph[i]), 0) / T_.periods.length;
             return T_.bandLo * (T_.bandHi / T_.bandLo) ** m;
-          }), this.t0 + st, dur);
-          this.texAmp[ch].gain.setValueCurveAtTime(curve(dur, (x) => {
+          });
+          this._curve(this.texAmp[ch].gain, this.t0 + st, dur, (x) => {
             const tt = st + x;
             let amp = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin((2 * Math.PI * tt) / (T_.periods[ch % 3] * 1.7) + ph[ph.length - 1]));
             const k = T_.shapeAmount; amp *= (1 - k) + k * (0.25 + 1.5 * this.shape(tt));
             const fadeIn = Math.min(1, tt / 20), fadeOut = this.total ? Math.min(1, Math.max(0, (this.total - tt) / 30)) : 1;
             return amp * fadeIn * fadeOut;
-          }), this.t0 + st, dur);
+          });
         }
       }
     }
