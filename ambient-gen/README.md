@@ -73,6 +73,8 @@ File `.toml` yang ditulis di samping setiap render berisi semua nilai final dan 
 ## Kinerja (4 core)
 
 60 menit: ~10,5 menit total di 4 core (sintesis, efek, master, MP3, laporan kualitas). Disk sementara ~2,5 GB.
+180 menit (terukur): 27 menit total, memori pribadi puncak 1,6 GB (tidak tumbuh dengan durasi), disk puncak 6,8 GB
+(pra-master W64 4,1 GB + WAV 3,1 GB). WAV akhir otomatis RF64 kalau melebihi ~3,9 GB.
 
 ## Versi web (`../web`)
 

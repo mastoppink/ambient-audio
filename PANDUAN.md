@@ -91,8 +91,9 @@ Skor di bawah 60% berarti jelas berbeda. Di atas 75% terlalu mirip.
 ```bash
 python buat.py --untuk tidur --jumlah 1 --menit 180
 ```
-Render 3 jam butuh sekitar 30 menit di komputer 4 core, ruang disk kosong sekitar 8 GB selama proses
-(hasil akhirnya: WAV ~3 GB dan MP3 ~430 MB), dan RAM sama seperti video 1 jam. Judul, deskripsi, dan chapter
+Render 3 jam butuh sekitar 27 menit di komputer 4 core (termasuk MP3, laporan kualitas, dan judul),
+ruang disk kosong sekitar 7 GB selama proses (hasil akhirnya: WAV 3,1 GB dan MP3 432 MB), dan RAM sekitar
+1,6 GB, sama seperti video 1 jam. Judul, deskripsi, dan chapter
 otomatis menyesuaikan ("3 Hours", chapter dengan format jam). Di Studio web, pilih durasinya di bagian
 **03 Resep**.
 
