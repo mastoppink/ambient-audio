@@ -99,6 +99,45 @@ otomatis menyesuaikan ("3 Hours", chapter dengan format jam). Di Studio web, pil
 
 ---
 
+## 2b. Mode album: track untuk dijual
+
+Membuat satu album track pendek yang serasi (untuk Spotify/Apple Music lewat distributor, Bandcamp, dan sebagainya):
+```bash
+python album.py
+```
+Program akan bertanya: album untuk apa (tidur, meditasi, fokus, santai), berapa track, berapa menit per track,
+nama album, dan nama artis. Atau langsung:
+```bash
+python album.py --fungsi tidur --jumlah 10 --menit 4 --nama "Orbital Lullabies" --artis "Spacenight"
+```
+Lihat rencananya dulu tanpa membuat audio:
+```bash
+python album.py --fungsi fokus --rencana
+```
+
+Yang dilakukan otomatis supaya album terasa satu karya:
+- Preset hanya dari fungsi yang dipilih, bergiliran, dengan nomor versi yang dipilih supaya track tidak mirip.
+- Nada dasar dari satu "keluarga" (nada rumah + kwint + kwart), dan track yang berurutan beda nada.
+- Volume semua track sama.
+- Album tidur dan meditasi diurutkan makin gelap menuju akhir.
+- Pembukaan singkat (sekitar 6 detik sampai penuh), fade-out 12 detik, dan chord berganti lebih sering daripada versi video.
+- Nama track dari bank nama (`album_kata.json`) dan tidak pernah dipakai dua kali (dicatat di `out/album/katalog_album.json`).
+
+Hasil ada di `out/album/<tanggal>_<nama-album>/`:
+| File | Untuk |
+|---|---|
+| `01 - Nama Track.wav` | WAV 16-bit 44,1 kHz: format standar yang diminta distributor |
+| `01 - Nama Track.mp3` | MP3 320 kbps bertag (judul, artis, album, nomor track) |
+| `album.txt` | Daftar track, durasi, dan catatan untuk distributor |
+| `resep/` | Resep tiap track (untuk membuat ulang persis) dan laporan kualitas |
+| `master/` | Hanya dengan `--master`: WAV 24-bit 48 kHz asli |
+
+Waktu render: sekitar 40 detik per track 4 menit, jadi satu album 10 track butuh sekitar 7 menit.
+
+Sampul album (minimal 3000×3000 piksel) dibuat terpisah.
+
+---
+
 ## 3. Membuat satu lagu secara manual
 
 ```bash

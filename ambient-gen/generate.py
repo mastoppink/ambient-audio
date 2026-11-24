@@ -64,13 +64,13 @@ def main():
 
 
 def render_resolved(r, seed, total, full, stem, stems=False, workers=None, mp3=True, flac=False,
-                    flac16=False, qc=True, log=print, keep_wav=False):
+                    flac16=False, qc=True, log=print, keep_wav=False, fade_out=30.0, titles=True):
     """Render satu preset yang sudah di-resolve. Dipakai generate.py dan buat.py."""
     settings.apply(r)
     text = settings.to_toml(r)
     t0 = time.time()
     import pipeline  # import di sini: pipeline membaca config yang sudah diterapkan
-    events, lufs = pipeline.produce(stem, total, seed, form=r.get("form"), form_total=full,
+    events, lufs = pipeline.produce(stem, total, seed, form=r.get("form"), form_total=full, fade_out=fade_out,
                                     stems=stems, workers=workers, log=log)
     qc_text = pipeline.save_meta(stem, events, text, lufs, mp3=mp3, flac=flac, qc=qc,
                                  profile=r["qc"]["profile"], flac16=flac16, seed=seed)
@@ -78,9 +78,10 @@ def render_resolved(r, seed, total, full, stem, stems=False, workers=None, mp3=T
         log("\n".join("  " + l for l in qc_text.splitlines()[3:] if "[CEK" in l or "[MASALAH" in l)
             or "  QC: semua OK")
     try:   # saran judul, deskripsi, chapter & tag YouTube yang sesuai audio ini
-        import judul
-        with open(f"{stem}.judul.txt", "w", encoding="utf-8") as f:
-            f.write(judul.teks(judul.dari_file(f"{stem}.toml")))
+        if titles:
+            import judul
+            with open(f"{stem}.judul.txt", "w", encoding="utf-8") as f:
+                f.write(judul.teks(judul.dari_file(f"{stem}.toml")))
     except Exception as err:   # judul tidak boleh menggagalkan render
         log(f"  (judul tidak dibuat: {err})")
     # hemat ruang: WAV hanya dipakai selama proses (mastering, cek puncak MP3, laporan kualitas, FLAC)

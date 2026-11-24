@@ -1,0 +1,35 @@
+{
+  "_catatan": "Bank nama untuk album.py. Nama track dipilih tanpa mengulang nama yang pernah dipakai (out/album/katalog_album.json).",
+  "track": {
+    "tidur": ["Lunar Tide", "Slow Orbit", "Dim Corona", "Night Harbor", "Soft Eclipse", "Quiet Perigee",
+              "Moonlit Dust", "Distant Lanterns", "Sleeping Satellites", "Velvet Horizon", "Ember of Vega",
+              "Faint Aurora", "Drifting Ice", "Hushed Nebula", "Dark Side Lullaby", "Starlight Cradle",
+              "Pale Blue Hours", "Gentle Descent", "Silver Haze", "Mooring Lights", "Low Tide on Europa",
+              "Cloud of Oort", "Resting Comet", "Night Window", "Calm Ascension", "Cosmic Blanket",
+              "Sleep of Planets", "Shadow of Titan", "Dream Shelf", "Ninth Moon"],
+    "meditasi": ["Still Point", "Breath of Space", "Inner Orbit", "Silent Mass", "Vacuum Prayer",
+                 "Event Horizon", "Zero Gravity", "Long Exposure", "Om of Saturn", "Cosmic Hum",
+                 "Deep Field", "Singularity", "Stellar Wind", "Weightless", "The Quiet Sun",
+                 "Pulsar Rest", "Dark Matter", "Open Sky", "Celestial Ground", "Timeless Arc",
+                 "Space Between Stars", "Solar Calm", "Monolith", "Hollow Moon", "Infinite Field"],
+    "fokus": ["Telemetry", "Signal Path", "Clear Orbit", "Mission Clock", "Steady Burn", "Ground Station",
+              "Data Stream", "Ion Drive", "Long Haul", "Low Earth Orbit", "Navigation", "Docking Window",
+              "Course Correction", "Payload", "Solar Array", "Station Keeping", "Trajectory",
+              "Orbital Mechanics", "Night Shift", "Uplink", "Star Tracker", "Cruise Phase", "Deep Work",
+              "Lagrange Point", "Flight Plan", "Quiet Engines", "Constant Velocity", "Relay"],
+    "santai": ["Nebula Bloom", "Aurora Fields", "Morning on Mars", "Golden Ring", "Glass Planets",
+               "Comet Garden", "Floating Lights", "Northern Signal", "Andromeda Dreams", "Cosmic Shore",
+               "Afterglow", "Starfall", "Perihelion", "Blue Giant", "Prism", "Halo",
+               "Sunrise from Orbit", "Celestial Bloom", "Lyra", "Light Years", "Bright Dust", "Equinox",
+               "Wanderer", "Gentle Supernova", "Little Planets", "Spectrum", "Rings of Light"]
+  },
+  "album": {
+    "tidur": ["Orbital Lullabies", "Night Harbor", "Sleep Between Stars", "Quiet Moons", "Lunar Sleep",
+              "Dreams in Low Orbit", "The Dark Side Lullabies"],
+    "meditasi": ["Still Point", "Breath of Space", "Weightless", "Deep Field", "Celestial Ground",
+                 "Silent Mass"],
+    "fokus": ["Deep Field Work", "Telemetry", "Mission Clock", "Steady Orbit", "Signal Path",
+              "Station Keeping"],
+    "santai": ["Signals", "Nebula Bloom", "Glass Planets", "Light Years", "Comet Garden", "Afterglow"]
+  }
+}
