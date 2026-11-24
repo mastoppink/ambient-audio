@@ -136,6 +136,9 @@ input[type="range"]:focus-visible { outline: none; }
 .save p { margin: 0 0 14px; color: var(--ink-2); font-size: 14px; max-width: 46ch; }
 pre { margin: 0 0 16px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 2px; overflow-x: auto; font-size: 13px; }
 .minutes { width: 96px; }
+.format-field { width: 150px; }
+footer p + p { margin-top: 8px; }
+footer a { color: inherit; }
 .duration-field { max-width: 180px; margin-bottom: 16px; }
 progress { -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 1px; margin-top: 18px; border: 0; background: var(--line-strong); }
 progress::-webkit-progress-bar { background: var(--line-strong); }

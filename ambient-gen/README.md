@@ -86,6 +86,7 @@ Diterbitkan ke GitHub Pages oleh `.github/workflows/pages.yml` setiap push yang 
 | `web/js/music.js` | RNG ber-seed, preset → parameter (port `settings.py`), komposisi (port `compose.py`) |
 | `web/js/engine.js` | Graf Web Audio: pad/drone, melodi, tekstur, EQ, chorus, delay, reverb; real-time & offline. `update()` menerapkan slider langsung (filter nada yang sedang berbunyi diganti dengan glide, IR ditukar dengan crossfade) |
 | `web/js/dsp.js` | IR reverb dirender async di OfflineAudioContext (native, di-cache), pink noise (di-cache), loudness BS.1770, limiter, penulis WAV |
+| `web/vendor/lamejs/` | Encoder MP3 (LAME via lamejs 1.2.1, LGPL-3.0), file terpisah yang dimuat saat ekspor MP3 |
 | `web/js/app.js` | Antarmuka, volume otomatis ke target LUFS, ekspor WAV & `.toml` |
 
 Diukur dengan `qc.py` (Nebula, 60 s): keseimbangan spektrum per pita dalam ±1,6 dB dari versi Python.

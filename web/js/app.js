@@ -427,13 +427,55 @@ async function renderWav() {
   const lufs0 = integratedLoudness(ch, SR);
   const gain = 10 ** ((r.master.target_lufs - lufs0) / 20);
   for (const x of ch) for (let i = 0; i < x.length; i++) x[i] *= gain;
-  limitInPlace(ch, SR, -1.0);
+  const asMp3 = $("#format").value === "mp3";
+  // MP3: sisakan ruang 0,5 dB, karena encoding MP3 sedikit menaikkan puncak (versi Python mengukurnya)
+  limitInPlace(ch, SR, asMp3 ? -1.5 : -1.0);
   const lufs = integratedLoudness(ch, SR);
-  download(wavBlob(ch, SR), `${fileName()}_${Math.round(total)}s.wav`);
+  if (asMp3) {
+    $("#status").textContent = "Membuat MP3…";
+    download(await mp3Blob(ch, SR, (f) => { $("#progress").value = f; }), `${fileName()}_${Math.round(total)}s.mp3`);
+  } else {
+    download(wavBlob(ch, SR), `${fileName()}_${Math.round(total)}s.wav`);
+  }
   $("#progress").value = 1;
   $("#status").textContent = `Selesai dalam ${((performance.now() - t0) / 1000).toFixed(0)} s · ${lufs.toFixed(1)} LUFS`;
   btn.disabled = false;
   window.__lastRender = { lufs, lufs0, seconds: total };
+}
+
+// ---------- MP3 (LAME/lamejs, dimuat hanya saat dibutuhkan) ----------
+let lamePromise = null;
+function loadLame() {
+  lamePromise ??= new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = new URL("../vendor/lamejs/lame.min.js", import.meta.url).href;
+    s.onload = () => (window.lamejs ? res(window.lamejs) : rej(new Error("lamejs tidak termuat")));
+    s.onerror = () => rej(new Error("gagal memuat encoder MP3"));
+    document.head.appendChild(s);
+  });
+  return lamePromise;
+}
+
+/** Encode MP3 320 kbps bertahap (jeda tiap ~25 ms) supaya halaman tidak macet. */
+async function mp3Blob(ch, sr, onProgress) {
+  const lame = await loadLame();
+  const enc = new lame.Mp3Encoder(2, sr, 320), n = ch[0].length, step = 1152 * 24, parts = [];
+  const L = new Int16Array(step), R = new Int16Array(step);
+  let t = performance.now();
+  for (let i = 0; i < n; i += step) {
+    const m = Math.min(step, n - i);
+    for (let k = 0; k < m; k++) {
+      L[k] = Math.max(-32768, Math.min(32767, Math.round(ch[0][i + k] * 32767)));
+      R[k] = Math.max(-32768, Math.min(32767, Math.round(ch[1][i + k] * 32767)));
+    }
+    const out = enc.encodeBuffer(L.subarray(0, m), R.subarray(0, m));
+    if (out.length) parts.push(new Uint8Array(out));
+    if (performance.now() - t > 25) { onProgress?.(i / n); await new Promise((r) => setTimeout(r, 0)); t = performance.now(); }
+  }
+  const end = enc.flush();
+  if (end.length) parts.push(new Uint8Array(end));
+  onProgress?.(1);
+  return new Blob(parts, { type: "audio/mpeg" });
 }
 
 function download(blob, name) {
