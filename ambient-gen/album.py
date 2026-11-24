@@ -144,10 +144,41 @@ def rencanakan(fungsi, jumlah, menit, rng, nada=None, nama=None, log=print):
                         "resep": r})
     # urutan: album tidur/meditasi makin gelap menuju akhir; fokus/santai tetap bergiliran
     if fungsi in ("tidur", "meditasi"):
-        rencana.sort(key=lambda v: -v["terang"])
+        rencana = urutkan_gelap(rencana)
     for i, v in enumerate(rencana):
         v["no"], v["judul"] = i + 1, judul[i]
     return {"album": album, "fungsi": fungsi, "target_lufs": target, "keluarga_nada": keluarga, "track": rencana}
+
+
+def urutkan_gelap(rencana, lebar=400):
+    """Makin gelap menuju akhir, tapi dua track berurutan tidak memakai preset yang sama dan
+    sebisa mungkin beda nada. Disusun dari depan dengan beam search; biaya = seberapa jauh
+    track bergeser dari urutan kecerahannya, + 100 untuk preset kembar berurutan, + 3 untuk
+    nada kembar berurutan."""
+    o = sorted(rencana, key=lambda v: -v["terang"])
+    n = len(o)
+    beam = [(0, ())]
+    for pos in range(n):
+        nxt = []
+        for biaya, urut in beam:
+            for i in range(n):
+                if i in urut:
+                    continue
+                b = biaya + abs(pos - i)
+                if urut:
+                    a = o[urut[-1]]
+                    b += 100 * (a["preset"] == o[i]["preset"]) + 3 * (a["nada"] == o[i]["nada"])
+                nxt.append((b, urut + (i,)))
+        nxt.sort(key=lambda x: x[0])
+        beam, seen = [], set()
+        for b, u in nxt:   # buang duplikat (himpunan sama, ujung sama): sisanya identik
+            k = (frozenset(u), u[-1])
+            if k not in seen:
+                seen.add(k)
+                beam.append((b, u))
+            if len(beam) >= lebar:
+                break
+    return [o[i] for i in beam[0][1]]
 
 
 def tampilkan(rc, log=print):

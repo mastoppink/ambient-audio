@@ -16,7 +16,7 @@ texture = 0.02
 cloud = 0.14
 
 [pad]
-brightness = [0.35, 0.45]
+brightness = [0.37, 0.47]
 width = 0.35
 movement = 0.25
 life = 0.4
