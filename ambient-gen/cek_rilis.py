@@ -33,18 +33,36 @@ SR = 48000
 def check_audio(wav, target_lufs, profile, consonance=None, events=None):
     """Kembalikan daftar (lulus: bool, pesan)."""
     out = []
-    x, sr = sf.read(wav, dtype="float64")
-    ok_num = bool(np.isfinite(x).all())
-    out.append((ok_num, "tanpa nilai rusak (NaN/inf)"))
-    m = x.mean(axis=1)
-    rms = lambda s: 20 * np.log10(np.sqrt((s ** 2).mean()) + 1e-12)
-    avg = rms(m)
-    first, last = rms(m[:sr]) - avg, rms(m[-sr:]) - avg
+    # streaming per 30 detik: memori tetap kecil berapa pun durasinya (WAV 3 jam = 8 GB kalau dibaca sekaligus)
+    info = sf.info(wav)
+    sr, n = info.samplerate, info.frames
+    finite, e_all = True, 0.0
+    dmax, dsample = 0.0, []
+    first = last = None
+    prev = None
+    with sf.SoundFile(wav) as f:
+        for b in f.blocks(blocksize=sr * 30, dtype="float64"):
+            finite &= bool(np.isfinite(b).all())
+            m = b.mean(axis=1)
+            e_all += float((m ** 2).sum())
+            if first is None:
+                first = float((m[:sr] ** 2).mean())
+            seg = b if prev is None else np.vstack([prev, b])
+            d = np.abs(np.diff(seg, axis=0)).max(axis=1)
+            dmax = max(dmax, float(d.max()))
+            # .copy(): potongan view numpy akan menahan seluruh blok di memori (~4 GB untuk 3 jam)
+            dsample.append(d[:: max(1, len(d) // 20000)].copy())      # sampel untuk persentil "wajar"
+            prev = b[-1:]
+        f.seek(max(0, n - sr))
+        last = float((f.read(dtype="float64").mean(axis=1) ** 2).mean())
+    db = lambda e: 10 * np.log10(e + 1e-24)
+    avg = db(e_all / n)
+    first, last = db(first) - avg, db(last) - avg
+    out.append((finite, "tanpa nilai rusak (NaN/inf)"))
     out.append((first < -40, f"awal mulai dari hening: detik pertama {first:.0f} dB relatif rata-rata (batas -40)"))
     out.append((last < -30, f"akhir fade-out: detik terakhir {last:.0f} dB relatif rata-rata (batas -30)"))
-    d = np.abs(np.diff(x, axis=0)).max(axis=1)
-    typical = np.percentile(d, 99.9)
-    out.append((d.max() < max(4 * typical, 0.05), f"tanpa klik: lompatan maks {d.max():.3f} (wajar {typical:.3f})"))
+    typical = float(np.percentile(np.concatenate(dsample), 99.9))
+    out.append((dmax < max(4 * typical, 0.05), f"tanpa klik: lompatan maks {dmax:.3f} (wajar {typical:.3f})"))
     r = qc.analyze(wav)
     out.append((abs(r["lufs"] - target_lufs) <= 0.5, f"loudness {r['lufs']} LUFS (target {target_lufs})"))
     out.append((r["true_peak_dbtp"] <= -1.0, f"true peak WAV {r['true_peak_dbtp']} dBTP"))
