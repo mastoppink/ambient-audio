@@ -1,7 +1,16 @@
-numpy
-scipy
-soundfile
-pedalboard
-pyloudnorm
-numba
-matplotlib
+# Spacenight ambient-gen. Butuh Python 3.11 atau lebih baru (tomllib), dan ffmpeg terpasang
+# terpisah (untuk MP3 dan mode album): https://ffmpeg.org/download.html
+# Pasang:  pip install -r requirements.txt
+# Diuji dengan: Python 3.13, numpy 2.5, scipy 1.18, soundfile 0.14, pedalboard 0.9.26,
+#               pyloudnorm 0.2, numba 0.68, matplotlib 3.11
+
+numpy>=2.0          # hitungan audio
+scipy>=1.11         # filter, resampling (cek puncak, versi stok)
+soundfile>=0.12     # baca/tulis WAV, W64, FLAC
+pedalboard>=0.9     # chorus & delay
+pyloudnorm>=0.1.1   # pengukuran loudness (laporan kualitas, cek_rilis)
+numba>=0.60         # mempercepat reverb, kehangatan pita, napas & peredam denting
+matplotlib>=3.8     # grafik laporan kualitas (.qc.png); boleh tidak ada
+
+# hanya untuk menjalankan tes (python -m pytest tests):
+pytest>=8
