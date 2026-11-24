@@ -3,7 +3,7 @@
 Musik ambient bertema luar angkasa yang dibuat sepenuhnya oleh program: synth, komposisi, dan mastering
 sendiri, tanpa sampel atau musik orang lain. Hasilnya MP3 60 menit yang siap dipakai untuk video YouTube.
 
-- **Studio (web):** https://mastoppink.github.io/luar-angkasa/ — dengarkan dan atur suara langsung di browser,
+- **Studio (web):** https://mastoppink.github.io/ambient-audio/ — dengarkan dan atur suara langsung di browser,
   lalu unduh resep `.toml`.
 - **Panduan pemakaian:** [PANDUAN.md](PANDUAN.md)
 - **Dokumentasi teknis:** [ambient-gen/README.md](ambient-gen/README.md)

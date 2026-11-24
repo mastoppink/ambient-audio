@@ -6,7 +6,7 @@ Program ini membuat musik ambient bertema luar angkasa berdurasi panjang (misaln
 
 ## 0. Spacenight Studio (versi web)
 
-Buka **https://mastoppink.github.io/luar-angkasa/** di browser (komputer atau HP). Tidak perlu memasang apa pun.
+Buka **https://mastoppink.github.io/ambient-audio/** di browser (komputer atau HP). Tidak perlu memasang apa pun.
 
 - Pilih preset, tekan **▶ Putar**, lalu geser slider. Perubahan langsung terdengar.
 - **✨ Versi baru** mengganti nomor versi dan nada dasar sekaligus, cara tercepat mendapat hasil yang jelas berbeda.
@@ -32,8 +32,8 @@ Yang dibutuhkan:
 
 Ambil program dan pasang komponennya:
 ```bash
-git clone -b claude/stoic-clarke-qaxnin https://github.com/mastoppink/luar-angkasa.git
-cd luar-angkasa/ambient-gen
+git clone -b claude/stoic-clarke-qaxnin https://github.com/mastoppink/ambient-audio.git
+cd ambient-audio/ambient-gen
 pip install -r requirements.txt
 ```
 
