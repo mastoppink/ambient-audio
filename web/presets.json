@@ -81,6 +81,11 @@
    "tape": 0.5,
    "noise": 0.25
   },
+  "comfort": {
+   "breath": 0.4,
+   "breath_period": 14.0,
+   "tame": 0.5
+  },
   "variation": {
    "amount": 0.5
   },
@@ -172,6 +177,11 @@
     "amount": 0.5,
     "tape": 0.5,
     "noise": 0.05
+   },
+   "comfort": {
+    "breath": 0.5,
+    "breath_period": 16.0,
+    "tame": 0.9
    },
    "variation": {
     "amount": 0.3
@@ -266,6 +276,11 @@
     "tape": 0.5,
     "noise": 0.05
    },
+   "comfort": {
+    "breath": 0.5,
+    "breath_period": 16.0,
+    "tame": 0.9
+   },
    "variation": {
     "amount": 0.3
    },
@@ -359,6 +374,11 @@
     "tape": 0.5,
     "noise": 0.05
    },
+   "comfort": {
+    "breath": 0.5,
+    "breath_period": 16.0,
+    "tame": 0.9
+   },
    "variation": {
     "amount": 0.25
    },
@@ -450,6 +470,11 @@
     "amount": 0.5,
     "tape": 0.5,
     "noise": 0.05
+   },
+   "comfort": {
+    "breath": 0.8,
+    "breath_period": 11.0,
+    "tame": 0.7
    },
    "variation": {
     "amount": 0.25
@@ -546,6 +571,11 @@
     "amount": 0.5,
     "tape": 0.5,
     "noise": 0.25
+   },
+   "comfort": {
+    "breath": 0.8,
+    "breath_period": 11.0,
+    "tame": 0.7
    },
    "variation": {
     "amount": 0.5
@@ -644,6 +674,11 @@
     "tape": 0.5,
     "noise": 0.25
    },
+   "comfort": {
+    "breath": 0.2,
+    "breath_period": 20.0,
+    "tame": 0.6
+   },
    "variation": {
     "amount": 0.7
    },
@@ -738,6 +773,11 @@
     "amount": 0.6,
     "tape": 0.5,
     "noise": 0.25
+   },
+   "comfort": {
+    "breath": 0.2,
+    "breath_period": 20.0,
+    "tame": 0.6
    },
    "variation": {
     "amount": 0.5
@@ -837,6 +877,11 @@
     "tape": 0.5,
     "noise": 0.25
    },
+   "comfort": {
+    "breath": 0.2,
+    "breath_period": 20.0,
+    "tame": 0.6
+   },
    "variation": {
     "amount": 0.45
    },
@@ -933,6 +978,11 @@
     "amount": 0.5,
     "tape": 0.5,
     "noise": 0.25
+   },
+   "comfort": {
+    "breath": 0.4,
+    "breath_period": 14.0,
+    "tame": 0.4
    },
    "variation": {
     "amount": 0.5
@@ -1032,6 +1082,11 @@
     "tape": 0.5,
     "noise": 0.25
    },
+   "comfort": {
+    "breath": 0.4,
+    "breath_period": 14.0,
+    "tame": 0.4
+   },
    "variation": {
     "amount": 0.5
    },
@@ -1125,6 +1180,11 @@
     "amount": 0.65,
     "tape": 0.5,
     "noise": 0.25
+   },
+   "comfort": {
+    "breath": 0.4,
+    "breath_period": 14.0,
+    "tame": 0.4
    },
    "variation": {
     "amount": 0.5

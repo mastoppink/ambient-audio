@@ -39,3 +39,8 @@ target_lufs = -14.0   # YouTube: tidak akan diturunkan, setara video lain
 reverb_decay = 12.0
 reverb_mix = 0.55
 shimmer = 0.25    # kilau oktaf atas yang halus
+
+[comfort]
+breath = 0.4          # napas: volume & kilau naik-turun pelan
+breath_period = 14.0
+tame = 0.4            # redam denting tajam 2-6 kHz

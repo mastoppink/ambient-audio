@@ -58,3 +58,8 @@ profile = "calm"
 density = 6.0
 length = 0.45
 register = 0.3
+
+[comfort]
+breath = 0.8          # napas: volume & kilau naik-turun pelan
+breath_period = 11.0
+tame = 0.7            # redam denting tajam 2-6 kHz

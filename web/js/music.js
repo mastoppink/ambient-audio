@@ -127,6 +127,7 @@ export function technical(r, data) {
       send: data.send, reverbHp: data.reverb_hp, predelay: data.reverb_predelay },
     form: fm, lufs: r.master.target_lufs, eq: data.eq, variation: r.variation?.amount ?? 0,
     warmth: { amount: r.warmth?.amount ?? 0, tape: r.warmth?.tape ?? 0, noise: r.warmth?.noise ?? 0 },
+    comfort: { breath: r.comfort?.breath ?? 0, breath_period: r.comfort?.breath_period ?? 14, tame: r.comfort?.tame ?? 0 },
     cloud: (() => {
       const c = r.cloud || {}, reg = c.register ?? 0.5;
       return { level: mix.cloud ?? 0, density: c.density ?? 10, length: c.length ?? 0.25,

@@ -80,6 +80,11 @@ DEFAULTS = {
         "tape": 0.5,                 # 0 .. 1 goyangan pita (wow & flutter), 0.5 = +-1,5 cent
         "noise": 0.25,               # 0 = tanpa desis .. 1 desis pita terdengar (-50 dB)
     },
+    "comfort": {                     # kenyamanan didengar lama
+        "breath": 0.4,               # 0 = mati .. 1 = suara "bernapas" jelas (volume & kilau naik-turun pelan)
+        "breath_period": 14.0,       # detik per tarikan napas (8..20)
+        "tame": 0.5,                 # 0 = mati .. 1 = nada tajam 2-6 kHz yang tiba-tiba menonjol diredam kuat
+    },
     "variation": {"amount": 0.5},    # 0 = tanpa babak & chord tambahan .. 1 = banyak perubahan
     "qc": {"profile": "default"},    # default / calm / sleep
 }
@@ -205,6 +210,7 @@ def apply(r):
     fm = r["form"]
     config.VARIATION = float(r["variation"]["amount"])
     config.WARMTH = {k: float(r["warmth"][k]) for k in ("amount", "tape", "noise")}
+    config.COMFORT = {k: float(r["comfort"][k]) for k in ("breath", "breath_period", "tame")}
     cl = r["cloud"]
     reg = float(cl["register"])
     octs = (0, 1, 1) if reg < 0.34 else (1, 1, 2) if reg < 0.67 else (1, 2, 2)

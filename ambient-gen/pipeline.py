@@ -73,6 +73,8 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     eq = {k: fx.StreamEQ(v) for k, v in config.EQ.items()}
     wm = config.WARMTH
     warmth = fx.Warmth(wm["amount"], wm["tape"], wm["noise"], np.random.default_rng([seed, 9]))
+    cf = config.COMFORT
+    comfort = fx.Comfort(cf["breath"], cf["breath_period"], cf["tame"], np.random.default_rng([seed, 11]))
     meter = LoudnessMeter(SR)
     n_fade = int(min(fade_out, total / 4) * SR)
 
@@ -98,7 +100,7 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
                 up, hp, rv = shimmer
                 wet = wet + rv(hp(up(send))) * p["shimmer"] * 0.6
             mix = dry * config.MIX["dry"] + eq["reverb"](wet) * config.MIX["wet"]
-            mix = eq["master"](warmth(mix))
+            mix = eq["master"](comfort(warmth(mix)))
             # fade-out di akhir lagu
             s0 = i * seg
             t_idx = s0 + np.arange(len(mix))

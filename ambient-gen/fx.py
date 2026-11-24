@@ -544,6 +544,43 @@ class Warmth:
         return x
 
 
+class Comfort:
+    """Kenyamanan untuk didengar berjam-jam. Dua bagian, per sampel, state dibawa antar potongan.
+
+    Napas (breath 0..1): volume (+-2 dB pada 1) dan kilau di atas ~1,5 kHz (+-3 dB pada 1) naik-turun
+        bersama dengan periode ~breath_period detik. Dua sinus dengan perbandingan periode 1:1,618,
+        jadi tidak pernah berulang persis.
+    Penjinak (tame 0..1): pita 2-6 kHz diawasi. Kalau tiba-tiba lebih keras dari rata-ratanya sendiri
+        (3 detik terakhir) lebih dari 6 dB, misalnya denting bel yang menusuk, pita itu diredam
+        (maksimal 9 dB pada 1). Bagian lain tidak disentuh.
+    Port JS: web/js/dsp-core.js (ComfortCore)."""
+
+    def __init__(self, breath, period, tame, rng):
+        self.depth = 2.0 * float(breath)
+        self.tilt = 3.0 * float(breath)
+        self.period = float(np.clip(period, 6.0, 30.0))
+        self.ph = rng.uniform(0, 2 * np.pi, 2)
+        self.maxcut = 9.0 * float(tame)
+        self.on = self.depth > 0 or self.maxcut > 0
+        w0 = 2 * np.pi * 3500 / SR
+        al = np.sin(w0) / (2 * 0.8)
+        a0 = 1 + al
+        self.bp = np.array([al / a0, 0.0, -al / a0, -2 * np.cos(w0) / a0, (1 - al) / a0])
+        self.lpc = 1 - np.exp(-2 * np.pi * 1500 / SR)
+        # state: lp[2], biquad[2][4], fast, slow, gr, n
+        self.st = np.zeros(2 + 8 + 3)
+        self.st[10] = self.st[11] = 1e-9
+        self.n = 0
+
+    def __call__(self, x):
+        if not self.on:
+            return x
+        out = np.empty_like(x)
+        self.n = _comfort(np.ascontiguousarray(x), out, self.st, self.n, float(SR), self.depth, self.tilt,
+                          self.period, self.ph, self.lpc, self.bp, self.maxcut)
+        return out
+
+
 try:
     from numba import njit as _njit
 
@@ -579,3 +616,52 @@ except ImportError:  # pragma: no cover
             out[k] = buf[i0 % S] * (1 - fr) + buf[(i0 + 1) % S] * fr
             w = (w + 1) % S
         return w, n + x.shape[0]
+
+
+def _comfort_py(x, out, st, n, sr, depth, tilt, period, ph, lpc, bp, maxcut):
+    tp = 2.0 * np.pi
+    b0, b2, a1, a2 = bp[0], bp[2], bp[3], bp[4]
+    af = 1.0 - np.exp(-1.0 / (0.015 * sr))      # pengikut cepat ~15 ms
+    asl = 1.0 - np.exp(-1.0 / (3.0 * sr))       # rata-rata pita ~3 detik
+    att = 1.0 - np.exp(-1.0 / (0.01 * sr))      # redaman turun ~10 ms
+    rel = 1.0 - np.exp(-1.0 / (0.25 * sr))      # pulih ~250 ms
+    f1 = 1.0 / period
+    f2 = 1.0 / (period * 1.618)
+    fast, slow, gr = st[10], st[11], st[12]
+    for k in range(x.shape[0]):
+        t = (n + k) / sr
+        s = 0.75 * np.sin(tp * f1 * t + ph[0]) + 0.25 * np.sin(tp * f2 * t + ph[1])
+        g = 10.0 ** (depth * s / 20.0)
+        h = 10.0 ** (tilt * s / 20.0)
+        e = 0.0
+        for c in range(2):
+            lp = st[c] + lpc * (x[k, c] - st[c])
+            st[c] = lp
+            y = (lp + (x[k, c] - lp) * h) * g
+            j = 2 + 4 * c
+            band = b0 * y + b2 * st[j + 1] - a1 * st[j + 2] - a2 * st[j + 3]
+            st[j + 1] = st[j]
+            st[j] = y
+            st[j + 3] = st[j + 2]
+            st[j + 2] = band
+            out[k, c] = y
+            e += band * band
+        if maxcut > 0:
+            e *= 0.5
+            fast += af * (e - fast)
+            slow += asl * (e - slow)
+            over = 10.0 * np.log10((fast + 1e-9) / (slow + 1e-9)) - 6.0
+            target = -min(maxcut, over * 0.7) if over > 0 else 0.0
+            gr += (att if target < gr else rel) * (target - gr)
+            gb = 10.0 ** (gr / 20.0) - 1.0
+            for c in range(2):
+                out[k, c] += gb * st[2 + 4 * c + 2]
+    st[10], st[11], st[12] = fast, slow, gr
+    return n + x.shape[0]
+
+
+try:
+    from numba import njit as _njit2
+    _comfort = _njit2(cache=True, fastmath=True)(_comfort_py)
+except ImportError:  # pragma: no cover
+    _comfort = _comfort_py

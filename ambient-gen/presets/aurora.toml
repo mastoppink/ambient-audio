@@ -53,3 +53,8 @@ target_lufs = -14.0
 density = 12.0
 length = 0.22
 register = 0.7
+
+[comfort]
+breath = 0.4          # napas: volume & kilau naik-turun pelan
+breath_period = 14.0
+tame = 0.4            # redam denting tajam 2-6 kHz

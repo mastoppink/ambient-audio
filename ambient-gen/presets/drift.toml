@@ -42,3 +42,8 @@ delay_feedback = 0.35
 
 [warmth]
 amount = 0.6
+
+[comfort]
+breath = 0.2          # napas: volume & kilau naik-turun pelan
+breath_period = 20.0
+tame = 0.6            # redam denting tajam 2-6 kHz

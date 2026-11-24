@@ -123,6 +123,10 @@ export class Engine {
       this._setWarmTone(W);
       pre.connect(this.warmNode); pre = this.warmNode;
       for (const b of this.warmTone) { pre.connect(b); pre = b; }
+      const C = P.comfort, cr = rngFor(this.seed, "comfort");
+      this.comfortNode = new AudioWorkletNode(ctx, "comfort", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+        channelCount: 2, channelCountMode: "explicit", processorOptions: { sr: ctx.sampleRate, ...C, ph: [cr.uniform(0, 6.28), cr.uniform(0, 6.28)] } });
+      pre.connect(this.comfortNode); pre = this.comfortNode;
     }
     pre.connect(hp).connect(this.masterGain);
     if (this.offline) this.masterGain.connect(this.out);
@@ -546,6 +550,7 @@ export class Engine {
       this.warmNode.port.postMessage({ type: "set", params: { ...P.warmth } });
       this._setWarmTone(P.warmth);
     }
+    if (this.comfortNode && changed(old.comfort, P.comfort)) this.comfortNode.port.postMessage({ type: "set", params: { ...P.comfort } });
   }
 
   /** Naik dari 0 dengan kurva equal-power (pasangan dari stop dengan crossfade). */
@@ -563,7 +568,7 @@ export class Engine {
     setTimeout(() => {
       for (const n of this.nodes) { try { n.stop(); } catch (e) { /* sudah berhenti */ } }
       this.out.disconnect();
-      this.warmNode?.port.postMessage("stop"); this.rev?.fdn?.port.postMessage("stop");   // akhiri prosesor worklet
+      this.warmNode?.port.postMessage("stop"); this.comfortNode?.port.postMessage("stop"); this.rev?.fdn?.port.postMessage("stop");   // akhiri prosesor worklet
     }, fade * 1000 + 100);
   }
 

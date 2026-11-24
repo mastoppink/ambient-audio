@@ -96,6 +96,9 @@ EQ = {
 # --- Kehangatan analog (fx.Warmth) ---
 WARMTH = dict(amount=0.0, tape=0.0, noise=0.0)
 
+# --- Kenyamanan: napas + penjinak nada tajam (fx.Comfort) ---
+COMFORT = dict(breath=0.0, breath_period=14.0, tame=0.0)
+
 # --- Lapisan awan (synth.cloud_segment) ---
 CLOUD = dict(level=0.0, density=10.0, length=0.25, octaves=(1, 1, 2))
 CHORD_TIMELINE = None     # diisi compose(): progresi chord untuk lapisan awan

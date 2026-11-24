@@ -54,3 +54,8 @@ noise = 0.05   # hampir tanpa desis: untuk tidur/meditasi
 density = 5.0
 length = 0.8    # tanpa melodi: awan pelan memberi kehidupan
 register = 0.4
+
+[comfort]
+breath = 0.8          # napas: volume & kilau naik-turun pelan
+breath_period = 11.0
+tame = 0.7            # redam denting tajam 2-6 kHz

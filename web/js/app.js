@@ -37,6 +37,11 @@ const CONTROLS = {
     ["space.reverb_decay", "Panjang gema", 4, 18, 0.5, "detik"],
     ["texture.brightness", "Angin: kecerahan", 0, 1, 0.01, ""],
   ],
+  Kenyamanan: [
+    ["comfort.breath", "Napas", 0, 1, 0.01, "diam → bernapas"],
+    ["comfort.breath_period", "Panjang napas", 6, 24, 0.5, "detik"],
+    ["comfort.tame", "Redam denting", 0, 1, 0.01, "mati → kuat"],
+  ],
   Variasi: [
     ["variation.amount", "Perubahan antar babak", 0, 1, 0.01, "sama terus → banyak berubah"],
     ["form.amount", "Naik-turun intensitas", 0, 1, 0.01, "datar → terasa"],

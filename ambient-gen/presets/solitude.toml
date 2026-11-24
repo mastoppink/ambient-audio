@@ -59,3 +59,8 @@ amount = 0.65  # sendu: sedikit lebih "kaset"
 density = 5.0
 length = 0.5
 register = 0.3
+
+[comfort]
+breath = 0.4          # napas: volume & kilau naik-turun pelan
+breath_period = 14.0
+tame = 0.4            # redam denting tajam 2-6 kHz

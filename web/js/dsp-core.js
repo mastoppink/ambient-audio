@@ -165,6 +165,53 @@ export class WarmthCore {
   }
 }
 
+/** Kenyamanan: napas (volume & kilau naik-turun pelan) + penjinak denting 2-6 kHz. Port dari fx.Comfort. */
+export class ComfortCore {
+  constructor(o) {
+    this.sr = o.sr; this.ph = o.ph; this.n = 0;
+    const w0 = (2 * Math.PI * 3500) / o.sr, al = Math.sin(w0) / 1.6, a0 = 1 + al;
+    this.b0 = al / a0; this.b2 = -al / a0; this.a1 = (-2 * Math.cos(w0)) / a0; this.a2 = (1 - al) / a0;
+    this.lpc = 1 - Math.exp((-2 * Math.PI * 1500) / o.sr);
+    this.st = new Float64Array(10);
+    this.fast = 1e-9; this.slow = 1e-9; this.gr = 0;
+    const sr = o.sr;
+    this.af = 1 - Math.exp(-1 / (0.015 * sr)); this.asl = 1 - Math.exp(-1 / (3 * sr));
+    this.att = 1 - Math.exp(-1 / (0.01 * sr)); this.rel = 1 - Math.exp(-1 / (0.25 * sr));
+    this.set(o);
+  }
+  set(o) {
+    this.depth = 2 * o.breath; this.tilt = 3 * o.breath;
+    this.period = Math.min(30, Math.max(6, o.breath_period)); this.maxcut = 9 * o.tame;
+  }
+  process(iL, iR, oL, oR, n) {
+    const st = this.st, tp = 2 * Math.PI, f1 = 1 / this.period, f2 = 1 / (this.period * 1.618), ins = [iL, iR], outs = [oL, oR];
+    const { b0, b2, a1, a2, lpc, depth, tilt, maxcut } = this;
+    for (let k = 0; k < n; k++) {
+      const t = (this.n + k) / this.sr;
+      const s = 0.75 * Math.sin(tp * f1 * t + this.ph[0]) + 0.25 * Math.sin(tp * f2 * t + this.ph[1]);
+      const g = 10 ** ((depth * s) / 20), h = 10 ** ((tilt * s) / 20);
+      let e = 0;
+      for (let c = 0; c < 2; c++) {
+        const x = ins[c][k], lp = st[c] + lpc * (x - st[c]); st[c] = lp;
+        const y = (lp + (x - lp) * h) * g, j = 2 + 4 * c;
+        const band = b0 * y + b2 * st[j + 1] - a1 * st[j + 2] - a2 * st[j + 3];
+        st[j + 1] = st[j]; st[j] = y; st[j + 3] = st[j + 2]; st[j + 2] = band;
+        outs[c][k] = y; e += band * band;
+      }
+      if (maxcut > 0) {
+        e *= 0.5;
+        this.fast += this.af * (e - this.fast); this.slow += this.asl * (e - this.slow);
+        const over = 10 * Math.log10((this.fast + 1e-9) / (this.slow + 1e-9)) - 6;
+        const target = over > 0 ? -Math.min(maxcut, over * 0.7) : 0;
+        this.gr += (target < this.gr ? this.att : this.rel) * (target - this.gr);
+        const gb = 10 ** (this.gr / 20) - 1;
+        oL[k] += gb * st[4]; if (oR !== oL) oR[k] += gb * st[8];
+      }
+    }
+    this.n += n;
+  }
+}
+
 function biq(kind, f, sr, gainDb, q) {
   const A = 10 ** (gainDb / 40), w0 = (2 * Math.PI * f) / sr, cw = Math.cos(w0), al = Math.sin(w0) / (2 * q);
   let b, a;
