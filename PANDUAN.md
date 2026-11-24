@@ -32,7 +32,7 @@ Yang dibutuhkan:
 
 Ambil program dan pasang komponennya:
 ```bash
-git clone -b claude/stoic-clarke-qaxnin https://github.com/mastoppink/ambient-audio.git
+git clone https://github.com/mastoppink/ambient-audio.git
 cd ambient-audio/ambient-gen
 pip install -r requirements.txt
 ```
