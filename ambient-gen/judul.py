@@ -172,10 +172,13 @@ def chapters(total, sections, rng):
     idx = [0] + [rest[i % len(rest)] for i in range(len(starts) - 1)]
     jam = max(starts) >= 3600
     out = []
-    for st, j in zip(starts, idx):
+    for i, (st, j) in enumerate(zip(starts, idx)):
         h, m, s = int(st // 3600), int(st % 3600 // 60), int(st % 60)
-        ts = f"{h}:{m:02d}:{s:02d}" if jam else f"{m}:{s:02d}"
-        out.append((ts, KATA["babak"]["en"][j], KATA["babak"]["id"][j]))
+        # YouTube: chapter pertama harus 0:00
+        ts = "0:00" if i == 0 else f"{h}:{m:02d}:{s:02d}" if jam else f"{m}:{s:02d}"
+        putaran = (i - 1) // len(rest) if i else 0          # lagu panjang: nama dipakai lagi dengan "II", "III"
+        akhir = ["", " II", " III", " IV"][min(putaran, 3)]
+        out.append((ts, KATA["babak"]["en"][j] + akhir, KATA["babak"]["id"][j] + akhir))
     return out
 
 

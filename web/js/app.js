@@ -86,6 +86,7 @@ async function init() {
   $("#render").onclick = renderWav;
   $("#copy").onclick = (e) => copyText($("#cmd").textContent, e.currentTarget);
   $("#judulTujuan").onchange = renderTitles;
+  $("#durasi").onchange = () => { $("#cmd").textContent = cmdText(); renderTitles(); };
   $("#judulBahasa").onchange = renderTitles;
   $("#judulDeskCopy").onclick = (e) => copyText($("#judulDesk").value, e.currentTarget);
   loadPreset(Object.keys(DATA.presets)[0]);
@@ -141,7 +142,7 @@ function refresh() {
     input.parentElement.classList.toggle("random", Array.isArray(raw) && !state.touched.has(path));
   }
   $("#keyinfo").textContent = `Nada ${P.tonicName}, ${MODE_NAMES[P.mode].toLowerCase()} · bentuk: ${FORM_NAMES[r.form.type].toLowerCase()} · volume akhir ${r.master.target_lufs} LUFS (${r.master.target_lufs >= -14.5 ? "standar YouTube" : "lebih pelan, untuk tidur/tenang"})`;
-  $("#cmd").textContent = `python generate.py ${fileName()}.toml --duration 60`;
+  $("#cmd").textContent = cmdText();
   renderTitles();
   if (!playing) return;
   // nada dasar/suasana/preset/nomor versi mengubah isi lagu -> mulai ulang (crossfade).
@@ -155,7 +156,7 @@ function refresh() {
 function renderTitles() {
   if (!DATA?.judul) return;
   const r = resolve(state.raw, state.seed);
-  r.duration_min = 60;
+  r.duration_min = durasiMenit();
   const j = buatJudul(DATA.judul, r, { tujuan: $("#judulTujuan").value || null });
   const en = $("#judulBahasa").value === "en", list = (en ? j.judulEn : j.judulId).slice(0, 4);
   const ol = $("#judulList");
@@ -185,6 +186,9 @@ function fallbackCopy(text, done) {
   try { document.execCommand("copy"); done(); } catch (e) { /* tidak didukung */ }
   ta.remove();
 }
+
+const durasiMenit = () => parseInt($("#durasi")?.value || "60", 10);
+const cmdText = () => `python generate.py ${fileName()}.toml --duration ${durasiMenit()}`;
 
 function songIdentity(P) { return [state.presetKey, state.seed, P.tonic, P.mode].join("|"); }
 
@@ -393,8 +397,9 @@ function downloadToml() {
   // nilai yang PERSIS sedang terdengar: rentang [min,max] dan daftar pilihan sudah dipilih untuk seed ini,
   // supaya versi Python memakai warna suara yang sama (Python punya generator acak sendiri)
   const out = resolve(state.raw, state.seed);
+  out.duration_min = durasiMenit();
   if (!out.name.includes("(studio)")) out.name = `${out.name} (studio)`;
-  const text = `# Dibuat di Spacenight Studio. Render: python generate.py ${fileName()}.toml --duration 60\n` + toToml(out);
+  const text = `# Dibuat di Spacenight Studio. Render: ${cmdText()}\n` + toToml(out);
   download(new Blob([text], { type: "text/plain" }), `${fileName()}.toml`);
 }
 

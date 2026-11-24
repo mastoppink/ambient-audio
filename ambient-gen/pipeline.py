@@ -76,12 +76,13 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     meter = LoudnessMeter(SR)
     n_fade = int(min(fade_out, total / 4) * SR)
 
-    tmp = f"{stem}.premaster.wav"
+    # W64: format WAV 64-bit, tanpa batas 4 GB (pra-master float 3 jam = 4,1 GB)
+    tmp = f"{stem}.premaster.w64"
     stem_files = {k: sf.SoundFile(f"{stem}.{k}.wav", "w", SR, 2, "FLOAT") for k in LAYER_NAMES} \
         if stems else {}
     workers = workers or os.cpu_count() or 1
     ctx = mp.get_context("fork")   # anak proses mewarisi config yang sudah diterapkan preset
-    with sf.SoundFile(tmp, "w", SR, 2, "FLOAT") as out, ctx.Pool(workers) as pool:
+    with sf.SoundFile(tmp, "w", SR, 2, "FLOAT", format="W64") as out, ctx.Pool(workers) as pool:
         for i, layers in pool.imap(_work, range(n_seg)):
             for k, f in stem_files.items():
                 f.write(layers[k])
@@ -116,7 +117,9 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     gain = 10 ** ((p["target_lufs"] - meter.integrated()) / 20)
     lim = fx.StreamLimiter(p["ceiling_db"])
     meter2 = LoudnessMeter(SR)
-    with sf.SoundFile(tmp) as src, sf.SoundFile(f"{stem}.wav", "w", SR, 2, "PCM_24") as dst:
+    # WAV biasa dibatasi 4 GB; di atas ~3,9 GB pakai RF64 (WAV 64-bit, dibaca ffmpeg/DAW modern)
+    wav_fmt = "RF64" if total_n * 2 * 3 > 3.9e9 else "WAV"
+    with sf.SoundFile(tmp) as src, sf.SoundFile(f"{stem}.wav", "w", SR, 2, "PCM_24", format=wav_fmt) as dst:
         drng = np.random.default_rng([seed, 7])
         lsb = 2.0 ** -23   # 1 LSB untuk 24-bit
 
@@ -149,14 +152,22 @@ def export_flac16(stem, seed=0):
 
 
 def _mp3_true_peak(mp3):
-    """Dekode MP3 dan ukur true peak (oversampling 4x), dBTP."""
+    """Dekode MP3 dan ukur true peak (oversampling 4x), dBTP. Streaming per 10 detik: memori tetap kecil
+    berapa pun durasinya (dulu seluruh audio didekode ke memori, ~4 GB untuk 3 jam)."""
     from scipy.signal import resample_poly
-    out = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", mp3, "-f", "f32le", "-ac", "2",
-                          "-ar", str(SR), "-"], capture_output=True, check=True).stdout
-    x = np.frombuffer(out, dtype=np.float32).reshape(-1, 2)
-    peak = 0.0
-    for i in range(0, len(x), SR * 60):
-        peak = max(peak, float(np.abs(resample_poly(x[i:i + SR * 60], 4, 1, axis=0)).max()))
+    proc = subprocess.Popen(["ffmpeg", "-loglevel", "error", "-i", mp3, "-f", "f32le", "-ac", "2",
+                             "-ar", str(SR), "-"], stdout=subprocess.PIPE)
+    chunk = SR * 10 * 2 * 4
+    peak, prev = 0.0, np.zeros((0, 2), np.float32)
+    while True:
+        raw = proc.stdout.read(chunk)
+        if not raw:
+            break
+        x = np.frombuffer(raw[: len(raw) // 8 * 8], dtype=np.float32).reshape(-1, 2)
+        seg = np.vstack([prev, x])                     # 64 sampel tumpang tindih: tepi filter tidak terpotong
+        peak = max(peak, float(np.abs(resample_poly(seg, 4, 1, axis=0)).max()))
+        prev = x[-64:]
+    proc.wait()
     return 20 * np.log10(peak + 1e-12)
 
 

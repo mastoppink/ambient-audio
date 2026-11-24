@@ -75,8 +75,10 @@ export function buatJudul(K, r, { tujuan = null, n = 5 } = {}) {
       starts.forEach((st, i) => {
         const j = i === 0 ? 0 : rest[(i - 1) % rest.length];
         const h = Math.floor(st / 3600), mm = Math.floor((st % 3600) / 60), ss = Math.floor(st % 60);
-        const ts = jam ? `${h}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}` : `${mm}:${String(ss).padStart(2, "0")}`;
-        chapter.push([ts, K.babak.en[j], K.babak.id[j]]);
+        // YouTube: chapter pertama harus 0:00; lagu panjang: nama dipakai lagi dengan "II", "III"
+        const ts = i === 0 ? "0:00" : jam ? `${h}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}` : `${mm}:${String(ss).padStart(2, "0")}`;
+        const akhir = ["", " II", " III", " IV"][Math.min(i ? Math.floor((i - 1) / rest.length) : 0, 3)];
+        chapter.push([ts, K.babak.en[j] + akhir, K.babak.id[j] + akhir]);
       });
     }
   }

@@ -87,6 +87,17 @@ Skor di bawah 60% berarti jelas berbeda. Di atas 75% terlalu mirip.
 
 ---
 
+**Video panjang (2–3 jam).** Tambahkan `--menit 180` untuk 3 jam:
+```bash
+python buat.py --untuk tidur --jumlah 1 --menit 180
+```
+Render 3 jam butuh sekitar 30 menit di komputer 4 core, ruang disk kosong sekitar 8 GB selama proses
+(hasil akhirnya: WAV ~3 GB dan MP3 ~430 MB), dan RAM sama seperti video 1 jam. Judul, deskripsi, dan chapter
+otomatis menyesuaikan ("3 Hours", chapter dengan format jam). Di Studio web, pilih durasinya di bagian
+**03 Resep**.
+
+---
+
 ## 3. Membuat satu lagu secara manual
 
 ```bash
@@ -147,7 +158,7 @@ Bagian awal versi 60 menit akan sama persis dengan preview yang kamu pilih.
 
 | Opsi | Contoh | Fungsi |
 |---|---|---|
-| `--duration` | `--duration 90` | Durasi dalam menit |
+| `--duration` | `--duration 180` | Durasi dalam menit (mis. 60 = 1 jam, 180 = 3 jam) |
 | `--seed` | `--seed 1234` | Versi lain dari preset yang sama (angka bebas) |
 | `--preview` | `--preview 120` | Render pendek (detik) untuk mencoba |
 | `--variations` | `--variations 5` | Buat beberapa versi sekaligus |

@@ -45,7 +45,8 @@ def test_youtube_chapters_valid():
     r, secs = _r("nebula", 2001)
     ch = judul.buat(r, sections=secs)["chapter"]
     assert len(ch) >= 3 and ch[0][0] == "0:00"
-    secs_list = [int(t.split(":")[0]) * 60 + int(t.split(":")[1]) for t, _, _ in ch]
+    to_s = lambda t: sum(int(x) * 60 ** i for i, x in enumerate(reversed(t.split(":"))))
+    secs_list = [to_s(t) for t, _, _ in ch]
     assert all(b - a >= 10 for a, b in zip(secs_list, secs_list[1:]))
     assert len({n for _, n, _ in ch}) == len(ch)                   # nama tidak berulang
 
@@ -56,3 +57,12 @@ def test_deterministic_and_avoids_previous_titles():
     assert a == judul.buat(r)
     b = judul.buat(r, hindari=a["judul_en"])
     assert not set(a["judul_en"]) & set(b["judul_en"])
+
+
+def test_three_hour_chapters():
+    r, secs = _r("deep_sleep", 1001, menit=180)
+    h = judul.buat(r, sections=secs)
+    ch = h["chapter"]
+    assert ch[0][0] == "0:00" and ch[-1][0].count(":") == 2      # format jam untuk video panjang
+    assert len({n for _, n, _ in ch}) == len(ch)                  # tetap tidak ada nama kembar
+    assert any("3 Hours" in t for t in h["judul_en"])

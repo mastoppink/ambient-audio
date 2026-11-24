@@ -206,7 +206,7 @@ def interaktif():
     p = tanya("Nomor pilihan", [str(i) for i in range(1, len(kunci) + 1)], "1")
     tujuan = kunci[int(p) - 1]
     jumlah = int(tanya("Berapa video?", None, "1") or 1)
-    menit = int(tanya("Berapa menit per video?", None, "60") or 60)
+    menit = int(tanya("Berapa menit per video? (60 = 1 jam, 120 = 2 jam, 180 = 3 jam)", None, "60") or 60)
     contoh = tanya("Buat contoh 2 menit dulu untuk didengar? (y/t)", ["y", "t"], "y") == "y"
     return tujuan, jumlah, menit, contoh
 

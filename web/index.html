@@ -86,6 +86,9 @@
   <section class="sheet save" aria-label="Simpan">
     <div class="cell">
       <div class="label"><span class="num">03</span>Resep untuk versi satu jam</div>
+      <label class="field duration-field"><span>Durasi video</span>
+        <select id="durasi"><option value="60">1 jam</option><option value="120">2 jam</option><option value="180">3 jam</option></select>
+      </label>
       <p>Simpan file <code>.toml</code> di folder <code>ambient-gen</code>, lalu jalankan:</p>
       <pre><code id="cmd"></code></pre>
       <div class="actions">
@@ -128,7 +131,7 @@
         <div class="actions"><button id="judulDeskCopy" class="quiet" type="button"><svg class="ic"><use href="#i-copy"/></svg>Salin deskripsi</button></div>
       </div>
     </div>
-    <p class="note">Disusun dari suasana, suara melodi, kecerahan, bentuk lagu, dan durasi yang sedang dipilih. Chapter mengikuti babak lagu versi 60 menit. Versi Python membuat file <code>.judul.txt</code> dari audio yang sudah jadi.</p>
+    <p class="note">Disusun dari suasana, suara melodi, kecerahan, bentuk lagu, dan durasi yang sedang dipilih. Durasi dan chapter mengikuti pilihan "Durasi video" di bagian 03. Versi Python membuat file <code>.judul.txt</code> dari audio yang sudah jadi.</p>
   </section>
 
   <footer>
