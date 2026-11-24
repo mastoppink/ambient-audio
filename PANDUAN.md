@@ -130,7 +130,16 @@ Hasil ada di `out/album/<tanggal>_<nama-album>/`:
 | `01 - Nama Track.mp3` | MP3 320 kbps bertag (judul, artis, album, nomor track) |
 | `album.txt` | Daftar track, durasi, dan catatan untuk distributor |
 | `resep/` | Resep tiap track (untuk membuat ulang persis) dan laporan kualitas |
+| `stok/` | Hanya dengan `--stok`: tiap track dalam versi 30 detik, 60 detik, dan loop 60 detik |
 | `master/` | Hanya dengan `--master`: WAV 24-bit 48 kHz asli |
+
+Untuk situs stock music (Pond5, AudioJungle, dan sebagainya), tambahkan `--stok`:
+```bash
+python album.py --fungsi santai --jumlah 10 --stok
+```
+- Versi 30 dan 60 detik dimulai tepat saat chord berganti (tidak di tengah nada) dan diakhiri fade singkat.
+- Versi loop bisa diputar berulang tanpa sambungan terdengar, cocok untuk game, aplikasi, dan latar video.
+- Volume semua versi sama dengan track aslinya.
 
 Waktu render: sekitar 40 detik per track 4 menit, jadi satu album 10 track butuh sekitar 7 menit.
 

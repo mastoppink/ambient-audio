@@ -18,6 +18,7 @@ Hasil di out/album/<tanggal>_<nama>/:
   NN - Judul.mp3         MP3 320 kbps bertag (judul, artis, album, nomor track)
   album.txt              daftar track, durasi, nada, dan catatan untuk distributor
   resep/                 file .toml tiap track (membuat ulang persis) + laporan kualitas
+  stok/                  (dengan --stok) tiap track: (30s), (60s), (Loop 60s) WAV 16-bit 44,1 kHz
   master/                (dengan --master) WAV 24-bit 48 kHz asli
 """
 import argparse
@@ -173,7 +174,7 @@ def _durasi(path):
     return float(out)
 
 
-def render(rc, artis, master=False, log=print):
+def render(rc, artis, master=False, stok=False, log=print):
     from generate import render_resolved
     from pipeline import _mp3_true_peak
     folder = os.path.join(OUT, f"{datetime.date.today():%Y%m%d}_{_slug(rc['album'])}")
@@ -201,6 +202,10 @@ def render(rc, artis, master=False, log=print):
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", stem + ".mp3", "-c", "copy",
                         "-id3v2_version", "3", *tag, os.path.join(folder, nama + ".mp3")], check=True)
         os.remove(stem + ".mp3")
+        if stok:   # versi edit untuk stock music: 30 detik, 60 detik, loop mulus
+            import stok as stok_mod
+            stok_mod.buat_semua(stem, os.path.join(folder, "stok"), nama, rc["target_lufs"],
+                                tag[2:8] + tag[10:], log=log)
         if master:
             shutil.move(stem + ".wav", os.path.join(folder, "master", nama + " (24-bit 48 kHz).wav"))
         else:
@@ -242,6 +247,8 @@ def album_txt(rc, artis):
               "- Semua suara dibuat dari sintesis (tanpa sampel, tanpa vokal, tanpa karya orang lain).",
               "- Kalau ditanya soal AI: musik ini dibuat dengan program sintesis algoritmik buatan sendiri,",
               "  bukan model AI generatif. Tetap baca kebijakan distributor terbaru sebelum mengunggah.",
+              "- Folder stok/ (kalau ada): versi 30 detik, 60 detik, dan loop 60 detik untuk situs stock music.",
+              "  File Loop bisa diputar berulang tanpa sambungan terdengar.",
               "- Sampul album (cover) minimal 3000x3000 piksel, dibuat terpisah.",
               "- Membuat ulang satu track persis: python generate.py resep/<file>.toml"]
     return "\n".join(baris) + "\n"
@@ -266,6 +273,7 @@ def main():
     ap.add_argument("--nama", help="nama album (bawaan: dipilih otomatis)")
     ap.add_argument("--artis", default="Spacenight", help="nama artis di tag file")
     ap.add_argument("--nada", choices=NADA + [n.lower() for n in NADA], help="nada rumah album (bawaan: acak)")
+    ap.add_argument("--stok", action="store_true", help="buat juga versi 30 detik, 60 detik, dan loop untuk stock music")
     ap.add_argument("--master", action="store_true", help="simpan juga WAV 24-bit 48 kHz asli")
     ap.add_argument("--rencana", action="store_true", help="hanya tampilkan rencana, tanpa render")
     ap.add_argument("--ya", action="store_true", help="jangan minta konfirmasi")
@@ -291,7 +299,7 @@ def main():
     if not a.ya and sys.stdin.isatty() and tanya("Lanjut membuat? (y/t)", ["y", "t"], "y").lower() != "y":
         return
     t0 = time.time()
-    folder = render(rc, a.artis, master=a.master)
+    folder = render(rc, a.artis, master=a.master, stok=a.stok)
     print(f"\nSelesai dalam {(time.time() - t0) / 60:.1f} menit. Hasil ada di {folder}")
 
 
