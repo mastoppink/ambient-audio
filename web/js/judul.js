@@ -16,11 +16,12 @@ function ciri(r) {
   return {
     mode: String(r.key.mode).toLowerCase(), timbre: melOn ? r.melody.timbre : "-", menit: Number(r.duration_min ?? 60),
     terang: b > 0.58 ? "terang" : b < 0.4 ? "gelap" : "netral", profil: r.qc?.profile ?? "default",
-    bentuk: r.form.type, tonic: r.key.tonic, lufs: r.master.target_lufs, density: r.melody.density,
+    bentuk: r.form.type, fungsi: r.fungsi ?? "", tonic: r.key.tonic, lufs: r.master.target_lufs, density: r.melody.density,
   };
 }
 
 export function tebakTujuan(c) {
+  if (["tidur", "meditasi", "fokus", "santai"].includes(c.fungsi)) return c.fungsi;   // kategori dari preset
   if (c.profil === "sleep" || c.lufs <= -16) return "tidur";
   if (c.timbre === "-") return "meditasi";
   if (c.profil === "calm") return c.mode !== "phrygian" ? "santai" : "fokus";

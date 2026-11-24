@@ -3,6 +3,7 @@
   "name": "Default",
   "seed": 20261123,
   "duration_min": 10,
+  "fungsi": "",
   "key": {
    "tonic": "D",
    "mode": "lydian"
@@ -88,72 +89,67 @@
   }
  },
  "presets": {
-  "nebula": {
-   "name": "Nebula",
-   "seed": 2001,
+  "deep_sleep": {
+   "name": "Deep Sleep",
+   "seed": 1001,
    "duration_min": 60,
+   "fungsi": "tidur",
    "key": {
     "tonic": "D",
-    "mode": "lydian"
+    "mode": "aeolian"
    },
    "mix": {
-    "drone": 0.8,
-    "pad": 0.55,
-    "melody": 0.21,
-    "texture": 0.04,
-    "cloud": 0.18
+    "drone": 0.65,
+    "pad": 0.5,
+    "melody": 0.12,
+    "texture": 0.025,
+    "cloud": 0.12
    },
    "pad": {
     "brightness": [
-     0.5,
-     0.7
+     0.28,
+     0.42
     ],
-    "width": [
-     0.5,
-     0.8
-    ],
-    "movement": 0.5,
+    "width": 0.6,
+    "movement": 0.25,
     "life": 0.5,
     "chord_seconds": [
-     60,
-     100
+     80,
+     130
     ],
-    "chord_weights": {
-     "II": 3.5
-    }
+    "chord_weights": {}
    },
    "drone": {
-    "brightness": 0.3,
+    "brightness": 0.15,
     "sub": 0.3
    },
    "melody": {
-    "density": 0.6,
-    "decay": 9.0,
-    "register": 0.6,
-    "timbre": "glass",
-    "phrases": 0.3,
-    "consonance": 1.0
+    "density": 0.2,
+    "decay": 12.0,
+    "register": 0.2,
+    "timbre": "piano",
+    "phrases": 0.15,
+    "consonance": 0.0
    },
    "texture": {
-    "brightness": 0.6
+    "brightness": 0.2
    },
    "space": {
-    "reverb_decay": 12.0,
-    "reverb_mix": 0.55,
-    "delay_feedback": 0.3,
+    "reverb_decay": 14.0,
+    "reverb_mix": 0.6,
+    "delay_feedback": 0.25,
     "early": 0.5,
     "width": 1.0,
     "motion": 0.5,
-    "shimmer": 0.25,
+    "shimmer": 0.0,
     "reverb_type": "hall",
     "size": 1.0
    },
    "form": {
     "type": [
+     "calm",
      "arc",
-     "rise",
-     "valley",
-     "journey"
+     "valley"
     ],
     "amount": 0.6,
     "period_min": [
@@ -165,83 +161,360 @@
     "bright": 0.8
    },
    "master": {
-    "target_lufs": -14.0
+    "target_lufs": -16.0
    },
    "cloud": {
-    "density": 10.0,
-    "length": 0.25,
-    "register": 0.5
+    "density": 4.0,
+    "length": 0.6,
+    "register": 0.2
    },
    "warmth": {
     "amount": 0.5,
     "tape": 0.5,
-    "noise": 0.25
+    "noise": 0.05
    },
    "variation": {
-    "amount": 0.5
+    "amount": 0.3
    },
    "qc": {
-    "profile": "default"
+    "profile": "sleep"
    }
   },
-  "aurora": {
-   "name": "Aurora",
-   "seed": 4001,
+  "starlight_lullaby": {
+   "name": "Starlight Lullaby",
+   "seed": 7001,
    "duration_min": 60,
+   "fungsi": "tidur",
    "key": {
-    "tonic": "F",
-    "mode": "lydian"
+    "tonic": "A",
+    "mode": "ionian"
    },
    "mix": {
-    "drone": 0.7,
-    "pad": 0.6,
-    "melody": 0.2,
-    "texture": 0.03,
-    "cloud": 0.2
+    "drone": 0.8,
+    "pad": 0.55,
+    "melody": 0.15,
+    "texture": 0.02,
+    "cloud": 0.14
    },
    "pad": {
     "brightness": [
-     0.62,
-     0.75
+     0.35,
+     0.45
     ],
-    "width": [
-     0.65,
-     0.85
-    ],
-    "movement": 0.55,
-    "life": 0.55,
+    "width": 0.35,
+    "movement": 0.25,
+    "life": 0.4,
     "chord_seconds": [
-     45,
-     75
+     70,
+     110
     ],
     "chord_weights": {
-     "II": 3.0,
-     "vii": 0.3
+     "iii": 1.0,
+     "vii": 0
     }
    },
    "drone": {
-    "brightness": 0.35,
-    "sub": 0.3
+    "brightness": 0.2,
+    "sub": 0.35
    },
    "melody": {
-    "density": 0.6,
-    "decay": 9.0,
-    "register": 0.65,
-    "timbre": "glass",
-    "phrases": 0.35,
+    "density": 0.35,
+    "decay": 11.0,
+    "register": 0.4,
+    "timbre": "piano",
+    "phrases": 0.3,
     "consonance": 1.0
    },
    "texture": {
-    "brightness": 0.6
+    "brightness": 0.25
    },
    "space": {
-    "reverb_decay": 11.0,
+    "reverb_decay": 12.0,
     "reverb_mix": 0.55,
     "delay_feedback": 0.3,
     "early": 0.5,
     "width": 1.0,
+    "motion": 0.5,
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
+   },
+   "form": {
+    "type": [
+     "calm",
+     "arc"
+    ],
+    "amount": 0.35,
+    "period_min": [
+     12,
+     25
+    ],
+    "intro_min": 3,
+    "outro_min": 5,
+    "bright": 0.8
+   },
+   "master": {
+    "target_lufs": -16.0
+   },
+   "cloud": {
+    "density": 5.0,
+    "length": 0.5,
+    "register": 0.4
+   },
+   "warmth": {
+    "amount": 0.5,
+    "tape": 0.5,
+    "noise": 0.05
+   },
+   "variation": {
+    "amount": 0.3
+   },
+   "qc": {
+    "profile": "sleep"
+   }
+  },
+  "lunar_haze": {
+   "name": "Lunar Haze",
+   "seed": 10001,
+   "duration_min": 60,
+   "fungsi": "tidur",
+   "key": {
+    "tonic": [
+     "F",
+     "G"
+    ],
+    "mode": "lydian"
+   },
+   "mix": {
+    "drone": 0.7,
+    "pad": 0.55,
+    "melody": 0.1,
+    "texture": 0.02,
+    "cloud": 0.1
+   },
+   "pad": {
+    "brightness": [
+     0.34,
+     0.44
+    ],
+    "width": 0.65,
+    "movement": 0.2,
+    "life": 0.5,
+    "chord_seconds": [
+     90,
+     140
+    ],
+    "chord_weights": {}
+   },
+   "drone": {
+    "brightness": 0.15,
+    "sub": 0.3
+   },
+   "melody": {
+    "density": 0.15,
+    "decay": 14.0,
+    "register": 0.25,
+    "timbre": "soft",
+    "phrases": 0.1,
+    "consonance": 0.0
+   },
+   "texture": {
+    "brightness": 0.15
+   },
+   "space": {
+    "reverb_decay": 15.0,
+    "reverb_mix": 0.62,
+    "delay_feedback": 0.2,
+    "early": 0.5,
+    "width": 1.0,
+    "motion": 0.5,
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
+   },
+   "form": {
+    "type": [
+     "calm",
+     "valley"
+    ],
+    "amount": 0.6,
+    "period_min": [
+     12,
+     25
+    ],
+    "intro_min": 3,
+    "outro_min": 5,
+    "bright": 0.8
+   },
+   "master": {
+    "target_lufs": -16.0
+   },
+   "cloud": {
+    "density": 3.0,
+    "length": 0.7,
+    "register": 0.15
+   },
+   "warmth": {
+    "amount": 0.5,
+    "tape": 0.5,
+    "noise": 0.05
+   },
+   "variation": {
+    "amount": 0.25
+   },
+   "qc": {
+    "profile": "sleep"
+   }
+  },
+  "meditation": {
+   "name": "Meditation",
+   "seed": 9001,
+   "duration_min": 60,
+   "fungsi": "meditasi",
+   "key": {
+    "tonic": "D",
+    "mode": "dorian"
+   },
+   "mix": {
+    "drone": 0.85,
+    "pad": 0.55,
+    "melody": 0.0,
+    "texture": 0.025,
+    "cloud": 0.16
+   },
+   "pad": {
+    "brightness": [
+     0.35,
+     0.45
+    ],
+    "width": 0.5,
+    "movement": 0.15,
+    "life": 0.5,
+    "chord_seconds": [
+     150,
+     240
+    ],
+    "chord_weights": {
+     "I": 4.0,
+     "V": 2.0,
+     "iii": 0.5,
+     "vii": 0
+    }
+   },
+   "drone": {
+    "brightness": 0.3,
+    "sub": 0.35
+   },
+   "melody": {
+    "density": 0.67,
+    "decay": 9.0,
+    "register": 0.5,
+    "timbre": "soft",
+    "phrases": 0.0,
+    "consonance": 0.0
+   },
+   "texture": {
+    "brightness": 0.3
+   },
+   "space": {
+    "reverb_decay": 13.0,
+    "reverb_mix": 0.6,
+    "delay_feedback": 0.3,
+    "early": 0.5,
+    "width": 1.0,
+    "motion": 0.5,
+    "shimmer": 0.0,
+    "reverb_type": "hall",
+    "size": 1.0
+   },
+   "form": {
+    "type": "calm",
+    "amount": 0.15,
+    "period_min": [
+     12,
+     25
+    ],
+    "intro_min": 3,
+    "outro_min": 5,
+    "bright": 0.8
+   },
+   "master": {
+    "target_lufs": -15.0
+   },
+   "cloud": {
+    "density": 5.0,
+    "length": 0.8,
+    "register": 0.4
+   },
+   "warmth": {
+    "amount": 0.5,
+    "tape": 0.5,
+    "noise": 0.05
+   },
+   "variation": {
+    "amount": 0.25
+   },
+   "qc": {
+    "profile": "calm"
+   }
+  },
+  "deep_space": {
+   "name": "Deep Space",
+   "seed": 5001,
+   "duration_min": 60,
+   "fungsi": "meditasi",
+   "key": {
+    "tonic": "C",
+    "mode": "phrygian"
+   },
+   "mix": {
+    "drone": 0.7,
+    "pad": 0.5,
+    "melody": 0.16,
+    "texture": 0.04,
+    "cloud": 0.16
+   },
+   "pad": {
+    "brightness": [
+     0.38,
+     0.5
+    ],
+    "width": 0.75,
+    "movement": 0.3,
+    "life": 0.45,
+    "chord_seconds": [
+     80,
+     130
+    ],
+    "chord_weights": {
+     "II": 3.0,
+     "iii": 2.0,
+     "vii": 0.4
+    }
+   },
+   "drone": {
+    "brightness": 0.2,
+    "sub": 0.45
+   },
+   "melody": {
+    "density": 0.25,
+    "decay": 12.0,
+    "register": 0.35,
+    "timbre": "glass",
+    "phrases": 0.15,
+    "consonance": 1.0
+   },
+   "texture": {
+    "brightness": 0.35
+   },
+   "space": {
+    "reverb_decay": 16.0,
+    "reverb_mix": 0.65,
+    "delay_feedback": 0.3,
+    "early": 0.3,
+    "width": 1.0,
     "motion": 0.6,
-    "shimmer": 0.4,
+    "shimmer": 0.0,
     "reverb_type": "hall",
     "size": 1.0
    },
@@ -252,10 +525,10 @@
      "valley",
      "journey"
     ],
-    "amount": 0.65,
+    "amount": 0.5,
     "period_min": [
-     12,
-     25
+     15,
+     28
     ],
     "intro_min": 3,
     "outro_min": 5,
@@ -265,9 +538,9 @@
     "target_lufs": -14.0
    },
    "cloud": {
-    "density": 12.0,
-    "length": 0.22,
-    "register": 0.7
+    "density": 6.0,
+    "length": 0.45,
+    "register": 0.3
    },
    "warmth": {
     "amount": 0.5,
@@ -278,13 +551,14 @@
     "amount": 0.5
    },
    "qc": {
-    "profile": "default"
+    "profile": "calm"
    }
   },
   "orbit": {
    "name": "Orbit",
    "seed": 6001,
    "duration_min": 60,
+   "fungsi": "fokus",
    "key": {
     "tonic": "G",
     "mode": "mixolydian"
@@ -381,6 +655,7 @@
    "name": "Drift",
    "seed": 3001,
    "duration_min": 60,
+   "fungsi": "fokus",
    "key": {
     "tonic": [
      "E",
@@ -471,61 +746,65 @@
     "profile": "default"
    }
   },
-  "deep_space": {
-   "name": "Deep Space",
-   "seed": 5001,
+  "satellite": {
+   "name": "Satellite",
+   "seed": 11001,
    "duration_min": 60,
+   "fungsi": "fokus",
    "key": {
-    "tonic": "C",
-    "mode": "phrygian"
+    "tonic": [
+     "C",
+     "D",
+     "G"
+    ],
+    "mode": "ionian"
    },
    "mix": {
     "drone": 0.7,
-    "pad": 0.5,
-    "melody": 0.16,
-    "texture": 0.04,
-    "cloud": 0.16
+    "pad": 0.6,
+    "melody": 0.2,
+    "texture": 0.03,
+    "cloud": 0.15
    },
    "pad": {
     "brightness": [
-     0.38,
-     0.5
+     0.45,
+     0.55
     ],
-    "width": 0.75,
-    "movement": 0.3,
-    "life": 0.45,
+    "width": 0.5,
+    "movement": 0.5,
+    "life": 0.5,
     "chord_seconds": [
-     80,
-     130
+     50,
+     80
     ],
-    "chord_weights": {
-     "II": 3.0,
-     "iii": 2.0,
-     "vii": 0.4
-    }
+    "chord_weights": {}
    },
    "drone": {
-    "brightness": 0.2,
-    "sub": 0.45
+    "brightness": 0.3,
+    "sub": 0.3
    },
    "melody": {
-    "density": 0.25,
-    "decay": 12.0,
-    "register": 0.35,
-    "timbre": "glass",
-    "phrases": 0.15,
+    "density": [
+     0.5,
+     0.65
+    ],
+    "decay": 8.0,
+    "register": 0.4,
+    "timbre": "piano",
+    "phrases": 0.35,
     "consonance": 1.0
    },
    "texture": {
-    "brightness": 0.35
+    "brightness": 0.3
    },
    "space": {
-    "reverb_decay": 16.0,
-    "reverb_mix": 0.65,
+    "reverb_decay": 9.5,
+    "reverb_mix": 0.45,
     "delay_feedback": 0.3,
-    "early": 0.3,
+    "early": 0.5,
     "width": 1.0,
-    "motion": 0.6,
+    "motion": 0.5,
     "shimmer": 0.0,
     "reverb_type": "hall",
     "size": 1.0
@@ -533,14 +812,13 @@
    "form": {
     "type": [
      "arc",
-     "rise",
-     "valley",
+     "calm",
      "journey"
     ],
-    "amount": 0.5,
+    "amount": 0.6,
     "period_min": [
-     15,
-     28
+     12,
+     25
     ],
     "intro_min": 3,
     "outro_min": 5,
@@ -551,8 +829,105 @@
    },
    "cloud": {
     "density": 6.0,
-    "length": 0.45,
-    "register": 0.3
+    "length": 0.4,
+    "register": 0.35
+   },
+   "warmth": {
+    "amount": 0.55,
+    "tape": 0.5,
+    "noise": 0.25
+   },
+   "variation": {
+    "amount": 0.45
+   },
+   "qc": {
+    "profile": "calm"
+   }
+  },
+  "nebula": {
+   "name": "Nebula",
+   "seed": 2001,
+   "duration_min": 60,
+   "fungsi": "santai",
+   "key": {
+    "tonic": "D",
+    "mode": "lydian"
+   },
+   "mix": {
+    "drone": 0.8,
+    "pad": 0.55,
+    "melody": 0.21,
+    "texture": 0.04,
+    "cloud": 0.18
+   },
+   "pad": {
+    "brightness": [
+     0.5,
+     0.7
+    ],
+    "width": [
+     0.5,
+     0.8
+    ],
+    "movement": 0.5,
+    "life": 0.5,
+    "chord_seconds": [
+     60,
+     100
+    ],
+    "chord_weights": {
+     "II": 3.5
+    }
+   },
+   "drone": {
+    "brightness": 0.3,
+    "sub": 0.3
+   },
+   "melody": {
+    "density": 0.6,
+    "decay": 9.0,
+    "register": 0.6,
+    "timbre": "glass",
+    "phrases": 0.3,
+    "consonance": 1.0
+   },
+   "texture": {
+    "brightness": 0.6
+   },
+   "space": {
+    "reverb_decay": 12.0,
+    "reverb_mix": 0.55,
+    "delay_feedback": 0.3,
+    "early": 0.5,
+    "width": 1.0,
+    "motion": 0.5,
+    "shimmer": 0.25,
+    "reverb_type": "hall",
+    "size": 1.0
+   },
+   "form": {
+    "type": [
+     "arc",
+     "rise",
+     "valley",
+     "journey"
+    ],
+    "amount": 0.6,
+    "period_min": [
+     12,
+     25
+    ],
+    "intro_min": 3,
+    "outro_min": 5,
+    "bright": 0.8
+   },
+   "master": {
+    "target_lufs": -14.0
+   },
+   "cloud": {
+    "density": 10.0,
+    "length": 0.25,
+    "register": 0.5
    },
    "warmth": {
     "amount": 0.5,
@@ -563,13 +938,112 @@
     "amount": 0.5
    },
    "qc": {
-    "profile": "calm"
+    "profile": "default"
+   }
+  },
+  "aurora": {
+   "name": "Aurora",
+   "seed": 4001,
+   "duration_min": 60,
+   "fungsi": "santai",
+   "key": {
+    "tonic": "F",
+    "mode": "lydian"
+   },
+   "mix": {
+    "drone": 0.7,
+    "pad": 0.6,
+    "melody": 0.2,
+    "texture": 0.03,
+    "cloud": 0.2
+   },
+   "pad": {
+    "brightness": [
+     0.62,
+     0.75
+    ],
+    "width": [
+     0.65,
+     0.85
+    ],
+    "movement": 0.55,
+    "life": 0.55,
+    "chord_seconds": [
+     45,
+     75
+    ],
+    "chord_weights": {
+     "II": 3.0,
+     "vii": 0.3
+    }
+   },
+   "drone": {
+    "brightness": 0.35,
+    "sub": 0.3
+   },
+   "melody": {
+    "density": 0.6,
+    "decay": 9.0,
+    "register": 0.65,
+    "timbre": "glass",
+    "phrases": 0.35,
+    "consonance": 1.0
+   },
+   "texture": {
+    "brightness": 0.6
+   },
+   "space": {
+    "reverb_decay": 11.0,
+    "reverb_mix": 0.55,
+    "delay_feedback": 0.3,
+    "early": 0.5,
+    "width": 1.0,
+    "motion": 0.6,
+    "shimmer": 0.4,
+    "reverb_type": "hall",
+    "size": 1.0
+   },
+   "form": {
+    "type": [
+     "arc",
+     "rise",
+     "valley",
+     "journey"
+    ],
+    "amount": 0.65,
+    "period_min": [
+     12,
+     25
+    ],
+    "intro_min": 3,
+    "outro_min": 5,
+    "bright": 0.8
+   },
+   "master": {
+    "target_lufs": -14.0
+   },
+   "cloud": {
+    "density": 12.0,
+    "length": 0.22,
+    "register": 0.7
+   },
+   "warmth": {
+    "amount": 0.5,
+    "tape": 0.5,
+    "noise": 0.25
+   },
+   "variation": {
+    "amount": 0.5
+   },
+   "qc": {
+    "profile": "default"
    }
   },
   "solitude": {
    "name": "Solitude",
    "seed": 8001,
    "duration_min": 60,
+   "fungsi": "santai",
    "key": {
     "tonic": "B",
     "mode": "aeolian"
@@ -657,279 +1131,6 @@
    },
    "qc": {
     "profile": "calm"
-   }
-  },
-  "meditation": {
-   "name": "Meditation",
-   "seed": 9001,
-   "duration_min": 60,
-   "key": {
-    "tonic": "D",
-    "mode": "dorian"
-   },
-   "mix": {
-    "drone": 0.85,
-    "pad": 0.55,
-    "melody": 0.0,
-    "texture": 0.025,
-    "cloud": 0.16
-   },
-   "pad": {
-    "brightness": [
-     0.35,
-     0.45
-    ],
-    "width": 0.5,
-    "movement": 0.15,
-    "life": 0.5,
-    "chord_seconds": [
-     150,
-     240
-    ],
-    "chord_weights": {
-     "I": 4.0,
-     "V": 2.0,
-     "iii": 0.5,
-     "vii": 0
-    }
-   },
-   "drone": {
-    "brightness": 0.3,
-    "sub": 0.35
-   },
-   "melody": {
-    "density": 0.67,
-    "decay": 9.0,
-    "register": 0.5,
-    "timbre": "soft",
-    "phrases": 0.0,
-    "consonance": 0.0
-   },
-   "texture": {
-    "brightness": 0.3
-   },
-   "space": {
-    "reverb_decay": 13.0,
-    "reverb_mix": 0.6,
-    "delay_feedback": 0.3,
-    "early": 0.5,
-    "width": 1.0,
-    "motion": 0.5,
-    "shimmer": 0.0,
-    "reverb_type": "hall",
-    "size": 1.0
-   },
-   "form": {
-    "type": "calm",
-    "amount": 0.15,
-    "period_min": [
-     12,
-     25
-    ],
-    "intro_min": 3,
-    "outro_min": 5,
-    "bright": 0.8
-   },
-   "master": {
-    "target_lufs": -15.0
-   },
-   "cloud": {
-    "density": 5.0,
-    "length": 0.8,
-    "register": 0.4
-   },
-   "warmth": {
-    "amount": 0.5,
-    "tape": 0.5,
-    "noise": 0.05
-   },
-   "variation": {
-    "amount": 0.25
-   },
-   "qc": {
-    "profile": "calm"
-   }
-  },
-  "starlight_lullaby": {
-   "name": "Starlight Lullaby",
-   "seed": 7001,
-   "duration_min": 60,
-   "key": {
-    "tonic": "A",
-    "mode": "ionian"
-   },
-   "mix": {
-    "drone": 0.8,
-    "pad": 0.55,
-    "melody": 0.15,
-    "texture": 0.02,
-    "cloud": 0.14
-   },
-   "pad": {
-    "brightness": [
-     0.35,
-     0.45
-    ],
-    "width": 0.35,
-    "movement": 0.25,
-    "life": 0.4,
-    "chord_seconds": [
-     70,
-     110
-    ],
-    "chord_weights": {
-     "iii": 1.0,
-     "vii": 0
-    }
-   },
-   "drone": {
-    "brightness": 0.2,
-    "sub": 0.35
-   },
-   "melody": {
-    "density": 0.35,
-    "decay": 11.0,
-    "register": 0.4,
-    "timbre": "piano",
-    "phrases": 0.3,
-    "consonance": 1.0
-   },
-   "texture": {
-    "brightness": 0.25
-   },
-   "space": {
-    "reverb_decay": 12.0,
-    "reverb_mix": 0.55,
-    "delay_feedback": 0.3,
-    "early": 0.5,
-    "width": 1.0,
-    "motion": 0.5,
-    "shimmer": 0.0,
-    "reverb_type": "hall",
-    "size": 1.0
-   },
-   "form": {
-    "type": [
-     "calm",
-     "arc"
-    ],
-    "amount": 0.35,
-    "period_min": [
-     12,
-     25
-    ],
-    "intro_min": 3,
-    "outro_min": 5,
-    "bright": 0.8
-   },
-   "master": {
-    "target_lufs": -16.0
-   },
-   "cloud": {
-    "density": 5.0,
-    "length": 0.5,
-    "register": 0.4
-   },
-   "warmth": {
-    "amount": 0.5,
-    "tape": 0.5,
-    "noise": 0.05
-   },
-   "variation": {
-    "amount": 0.3
-   },
-   "qc": {
-    "profile": "sleep"
-   }
-  },
-  "deep_sleep": {
-   "name": "Deep Sleep",
-   "seed": 1001,
-   "duration_min": 60,
-   "key": {
-    "tonic": "D",
-    "mode": "aeolian"
-   },
-   "mix": {
-    "drone": 0.65,
-    "pad": 0.5,
-    "melody": 0.12,
-    "texture": 0.025,
-    "cloud": 0.12
-   },
-   "pad": {
-    "brightness": [
-     0.28,
-     0.42
-    ],
-    "width": 0.6,
-    "movement": 0.25,
-    "life": 0.5,
-    "chord_seconds": [
-     80,
-     130
-    ],
-    "chord_weights": {}
-   },
-   "drone": {
-    "brightness": 0.15,
-    "sub": 0.3
-   },
-   "melody": {
-    "density": 0.2,
-    "decay": 12.0,
-    "register": 0.2,
-    "timbre": "piano",
-    "phrases": 0.15,
-    "consonance": 0.0
-   },
-   "texture": {
-    "brightness": 0.2
-   },
-   "space": {
-    "reverb_decay": 14.0,
-    "reverb_mix": 0.6,
-    "delay_feedback": 0.25,
-    "early": 0.5,
-    "width": 1.0,
-    "motion": 0.5,
-    "shimmer": 0.0,
-    "reverb_type": "hall",
-    "size": 1.0
-   },
-   "form": {
-    "type": [
-     "calm",
-     "arc",
-     "valley"
-    ],
-    "amount": 0.6,
-    "period_min": [
-     12,
-     25
-    ],
-    "intro_min": 3,
-    "outro_min": 5,
-    "bright": 0.8
-   },
-   "master": {
-    "target_lufs": -16.0
-   },
-   "cloud": {
-    "density": 4.0,
-    "length": 0.6,
-    "register": 0.2
-   },
-   "warmth": {
-    "amount": 0.5,
-    "tape": 0.5,
-    "noise": 0.05
-   },
-   "variation": {
-    "amount": 0.3
-   },
-   "qc": {
-    "profile": "sleep"
    }
   }
  },

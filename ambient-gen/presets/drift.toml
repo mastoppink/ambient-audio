@@ -2,6 +2,7 @@
 name = "Drift"
 seed = 3001
 duration_min = 60
+fungsi = "fokus"
 
 [key]
 tonic = ["E", "A"]   # daftar pilihan: seed memilih salah satu

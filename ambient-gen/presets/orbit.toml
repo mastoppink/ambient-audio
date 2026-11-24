@@ -1,7 +1,8 @@
-# Orbit: ringan dan melayang. Untuk belajar atau bekerja.
+# Orbit: ringan dan paling banyak berubah, kalimba. Untuk fokus, belajar, kerja.
 name = "Orbit"
 seed = 6001
 duration_min = 60
+fungsi = "fokus"
 
 [key]
 tonic = "G"

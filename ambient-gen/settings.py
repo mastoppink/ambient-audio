@@ -29,6 +29,7 @@ DEFAULTS = {
     "name": "Default",
     "seed": config.SEED,
     "duration_min": 10,
+    "fungsi": "",                    # tidur / meditasi / fokus / santai (untuk judul & buat.py)
     "key": {"tonic": "D", "mode": "lydian"},
     "mix": {"drone": 0.8, "pad": 0.55, "melody": 0.22, "texture": 0.05, "cloud": 0.18},
     "pad": {

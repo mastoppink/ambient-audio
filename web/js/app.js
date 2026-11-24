@@ -56,7 +56,13 @@ const fmt = (v, step) => (step >= 1 ? v.toFixed(0) : step >= 0.1 ? v.toFixed(1) 
 async function init() {
   DATA = await (await fetch("presets.json")).json();
   const sel = $("#preset");
-  for (const [k, p] of Object.entries(DATA.presets)) sel.add(new Option(p.name, k));
+  const GRUP = { tidur: "Tidur", meditasi: "Meditasi", fokus: "Fokus & belajar", santai: "Santai" };
+  const grup = {};
+  for (const [k, p] of Object.entries(DATA.presets)) {
+    const g = p.fungsi || "lain";
+    if (!grup[g]) { grup[g] = document.createElement("optgroup"); grup[g].label = GRUP[g] ?? "Lainnya"; sel.append(grup[g]); }
+    grup[g].append(new Option(p.name, k));
+  }
   for (const n of NOTE_NAMES) $("#tonic").add(new Option(n, n));
   for (const m of Object.keys(MODES)) $("#mode").add(new Option(MODE_NAMES[m] || m, m));
   $("#formtype").add(new Option("Pilihan preset", "")); 
@@ -89,7 +95,7 @@ async function init() {
   $("#durasi").onchange = () => { $("#cmd").textContent = cmdText(); renderTitles(); };
   $("#judulBahasa").onchange = renderTitles;
   $("#judulDeskCopy").onclick = (e) => copyText($("#judulDesk").value, e.currentTarget);
-  loadPreset(Object.keys(DATA.presets)[0]);
+  loadPreset(DATA.presets.nebula ? "nebula" : Object.keys(DATA.presets)[0]);
   drawLoop();
 }
 

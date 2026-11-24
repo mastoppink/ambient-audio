@@ -2,6 +2,7 @@
 name = "Aurora"
 seed = 4001
 duration_min = 60
+fungsi = "santai"
 
 [key]
 tonic = "F"

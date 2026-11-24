@@ -2,6 +2,7 @@
 name = "Deep Sleep"
 seed = 1001
 duration_min = 60
+fungsi = "tidur"
 
 [key]
 tonic = "D"

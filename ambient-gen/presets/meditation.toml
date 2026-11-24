@@ -2,6 +2,7 @@
 name = "Meditation"
 seed = 9001
 duration_min = 60
+fungsi = "meditasi"
 
 [key]
 tonic = "D"

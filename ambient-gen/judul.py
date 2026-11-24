@@ -54,10 +54,12 @@ def ciri(r, events=None, qc=None):
         terang = "terang" if b > 0.58 else "gelap" if b < 0.4 else "netral"
     profil = r.get("qc", {}).get("profile", "default")
     return dict(mode=mode, timbre=timbre, menit=menit, mel_per_jam=n_mel, terang=terang, profil=profil,
-                bentuk=r["form"]["type"], tonic=r["key"]["tonic"], lufs=r["master"]["target_lufs"])
+                bentuk=r["form"]["type"], fungsi=r.get("fungsi", ""), tonic=r["key"]["tonic"], lufs=r["master"]["target_lufs"])
 
 
 def tebak_tujuan(c):
+    if c.get("fungsi") in ("tidur", "meditasi", "fokus", "santai"):
+        return c["fungsi"]          # kategori dari preset
     if c["profil"] == "sleep" or c["lufs"] <= -16:
         return "tidur"
     if c["timbre"] == "-":

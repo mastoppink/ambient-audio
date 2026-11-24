@@ -120,17 +120,22 @@ WAV 24-bit hanya dipakai sementara selama proses. Tambahkan `--simpan-wav` kalau
 
 ## 4. Pilihan preset
 
-| Preset | Suasana | Cocok untuk |
+| Fungsi | Preset | Suasana |
 |---|---|---|
-| `nebula` | Luas dan terang, bel kaca berkilau | Umum, santai |
-| `aurora` | Hangat dan penuh harapan | Pagi, bersantai |
-| `orbit` | Ringan dan melayang, kalimba | Belajar, kerja |
-| `drift` | Sendu dan hangat, kalimba | Fokus |
-| `deep_space` | Misterius dan gelap, gema panjang | Fokus malam |
-| `solitude` | Sendu dan reflektif, sangat lambat | Merenung |
-| `meditation` | Statis, tanpa melodi | Meditasi, yoga |
-| `starlight_lullaby` | Lembut dan manis, piano jauh | Tidur anak, menenangkan diri |
-| `deep_sleep` | Gelap dan lambat, piano jauh | Tidur |
+| Tidur | `deep_sleep` | Gelap dan lambat, piano jauh |
+| Tidur | `starlight_lullaby` | Lembut dan manis, piano jauh |
+| Tidur | `lunar_haze` | Kabut bulan: nada lembut tanpa denting, paling pelan |
+| Meditasi | `meditation` | Statis, tanpa melodi |
+| Meditasi | `deep_space` | Misterius, gema paling panjang |
+| Fokus & belajar | `orbit` | Ringan, paling banyak berubah, kalimba |
+| Fokus & belajar | `drift` | Sendu dan hangat, kalimba lebih lembut |
+| Fokus & belajar | `satellite` | Stabil dan hangat, piano jauh mengalir teratur |
+| Santai | `nebula` | Luas dan terang, bel kaca berkilau |
+| Santai | `aurora` | Hangat, paling berkilau |
+| Santai | `solitude` | Sendu dan reflektif, menemani malam |
+
+`buat.py --untuk tidur` hanya memakai preset Tidur, dan seterusnya (`belajar` memakai preset Fokus, tapi judulnya "study").
+Judul otomatis juga mengikuti fungsi preset.
 
 Contoh: `python generate.py presets/orbit.toml`
 

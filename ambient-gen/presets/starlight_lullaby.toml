@@ -2,6 +2,7 @@
 name = "Starlight Lullaby"
 seed = 7001
 duration_min = 60
+fungsi = "tidur"
 
 [key]
 tonic = "A"

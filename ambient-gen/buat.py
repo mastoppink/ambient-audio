@@ -31,13 +31,13 @@ KATALOG = os.path.join(ROOT, "out", "katalog.json")
 RENCANA = os.path.join(ROOT, "out", "rencana_terakhir.json")
 
 TUJUAN = {
-    "tidur":    ("untuk Tidur", ["deep_sleep", "starlight_lullaby", "solitude"]),
-    "fokus":    ("untuk Fokus", ["drift", "deep_space", "orbit"]),
-    "belajar":  ("untuk Belajar", ["orbit", "drift", "aurora"]),
+    "tidur":    ("untuk Tidur", ["deep_sleep", "starlight_lullaby", "lunar_haze"]),
+    "meditasi": ("untuk Meditasi", ["meditation", "deep_space"]),
+    "fokus":    ("untuk Fokus", ["orbit", "drift", "satellite"]),
+    "belajar":  ("untuk Belajar", ["orbit", "drift", "satellite"]),   # sama dengan fokus; judulnya "study"
     "santai":   ("untuk Bersantai", ["nebula", "aurora", "solitude"]),
-    "meditasi": ("untuk Meditasi", ["meditation", "deep_space", "solitude"]),
-    "campur":   ("", ["nebula", "aurora", "orbit", "drift", "deep_space", "solitude",
-                      "starlight_lullaby", "deep_sleep", "meditation"]),
+    "campur":   ("", ["deep_sleep", "starlight_lullaby", "lunar_haze", "meditation", "deep_space",
+                      "orbit", "drift", "satellite", "nebula", "aurora", "solitude"]),
 }
 SUASANA = {"lydian": "luas & melayang", "dorian": "sendu & hangat", "aeolian": "gelap & tenang",
            "ionian": "cerah & manis", "mixolydian": "ringan & santai", "phrygian": "misterius"}

@@ -1,7 +1,8 @@
-# Solitude: sendu dan reflektif.
+# Solitude: sendu dan reflektif. Untuk santai dan menemani malam.
 name = "Solitude"
 seed = 8001
 duration_min = 60
+fungsi = "santai"
 
 [key]
 tonic = "B"

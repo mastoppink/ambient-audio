@@ -11,8 +11,9 @@ import settings
 ROOT = pathlib.Path(__file__).resolve().parent
 OUT = ROOT.parent / "web" / "presets.json"
 
-ORDER = ["nebula", "aurora", "orbit", "drift", "deep_space", "solitude", "meditation",
-         "starlight_lullaby", "deep_sleep"]
+# urut per fungsi: tidur, meditasi, fokus, santai
+ORDER = ["deep_sleep", "starlight_lullaby", "lunar_haze", "meditation", "deep_space",
+         "orbit", "drift", "satellite", "nebula", "aurora", "solitude"]
 
 
 def build():

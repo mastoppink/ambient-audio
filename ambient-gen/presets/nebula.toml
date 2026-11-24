@@ -1,7 +1,8 @@
-# Nebula: luas dan terang, warna khas Lydian. Paling dekat dengan milestone 3.
+# Nebula: luas dan terang, warna khas Lydian. Untuk santai.
 name = "Nebula"
 seed = 2001
 duration_min = 60
+fungsi = "santai"
 
 [key]
 tonic = "D"

@@ -1,7 +1,8 @@
-# Deep Space: misterius dan sedikit gelap. Untuk fokus di malam hari.
+# Deep Space: misterius, gema paling panjang. Untuk meditasi dan kontemplasi.
 name = "Deep Space"
 seed = 5001
 duration_min = 60
+fungsi = "meditasi"
 
 [key]
 tonic = "C"
