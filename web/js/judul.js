@@ -44,12 +44,13 @@ export function buatJudul(K, r, { tujuan = null, n = 5 } = {}) {
   const aman = (t) => t.length <= MAX_LEN && K.terlarang.every((w) => !t.toLowerCase().includes(w));
   const kandidat = (lang) => {
     const out = [], used = new Set(), tpls = K.templat[lang];
-    for (let it = 0; it < 80 && out.length < n; it++) {
+    for (let it = 0; it < 120 && out.length < tpls.length + 2; it++) {   // semua pola dicoba dulu
       const ti = Math.floor(rng() * tpls.length);
       if (used.has(ti) && used.size < tpls.length) continue;      // tiap pola dipakai sekali dulu
       const citra = pick(cit[lang]);
       if (tpls[ti].includes("{mood} {citra}") && citra.split(" ").length > 1) continue;
       if (tpls[ti].includes("Cosmic Drones") && c.timbre === "-") continue;
+      if (tpls[ti].includes("Calm Nights") && !["tidur", "santai", "meditasi"].includes(tujuan)) continue;
       const m = [...mood[lang]].sort(() => rng() - 0.5);
       const ext = c.terang === "netral" ? [] : K[c.terang === "terang" ? "terang" : "gelap"][lang];
       const d = { citra, mood: m[0], mood2: ext.length ? pick(ext) : m[1 % m.length], melodi: mel[lang], tujuan: pick(T[lang]),
@@ -60,7 +61,7 @@ export function buatJudul(K, r, { tujuan = null, n = 5 } = {}) {
       if (lang === "id") t = t.replace("yang " + d.mood, "yang " + d.mood.toLowerCase());
       if (aman(t) && !out.includes(t)) { out.push(t); used.add(ti); }
     }
-    return out.sort((a, b) => Math.abs(a.length - 65) - Math.abs(b.length - 65));
+    return out.sort((a, b) => Math.abs(a.length - 88) - Math.abs(b.length - 88)).slice(0, n);   // panjang & deskriptif, <= 100
   };
   const judulEn = kandidat("en"), judulId = kandidat("id");
   // chapter dari babak (sama seperti mesin audio: Sections dengan seed & variasi yang sama)

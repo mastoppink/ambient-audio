@@ -23,6 +23,7 @@ with open(os.path.join(ROOT, "judul_kata.json"), encoding="utf-8") as _f:
     KATA = json.load(_f)
 NOTE = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 MAX_LEN = 100   # batas judul YouTube
+TARGET_LEN = 88 # panjang yang diutamakan
 
 
 def durasi_label(menit):
@@ -97,7 +98,7 @@ def buat(r, events=None, qc=None, tujuan=None, sections=None, n=5, hindari=()):
     def kandidat(lang):
         out, pola_terpakai = [], set()
         tpls = KATA["templat"][lang]
-        for _ in range(80):
+        for _ in range(120):
             m = list(mood[lang]); rng.shuffle(m)
             ext = KATA["terang" if c["terang"] == "terang" else "gelap"][lang] if c["terang"] != "netral" else []
             ti = int(rng.integers(len(tpls)))
@@ -106,6 +107,8 @@ def buat(r, events=None, qc=None, tujuan=None, sections=None, n=5, hindari=()):
             citra = str(rng.choice(cit[lang]))
             if "{mood} {citra}" in tpls[ti] and len(citra.split()) > 1:
                 continue                      # hindari "Dark Far Side of the Moon"
+            if "Calm Nights" in tpls[ti] and tujuan not in ("tidur", "santai", "meditasi"):
+                continue                      # "for Focus and Calm Nights" janggal
             if "Cosmic Drones" in tpls[ti] and c["timbre"] == "-":
                 continue                      # hindari "Pure Drones & Cosmic Drones"
             d = dict(citra=citra, mood=m[0], mood2=m[1 % len(m)] if not ext else str(rng.choice(ext)),
@@ -117,15 +120,17 @@ def buat(r, events=None, qc=None, tujuan=None, sections=None, n=5, hindari=()):
             t = _isi(tpls[ti], d)
             if lang == "id":
                 t = t.replace("yang " + d["mood"], "yang " + d["mood"].lower())
+            if "{mood2}" in tpls[ti] and d["mood2"] == d["mood"]:
+                continue
             key = t.lower()
             if (_aman(t) and key not in hindari and " ".join(key.split()[:2]) not in awal_terpakai
                     and t not in out):
                 out.append(t)
                 pola_terpakai.add(ti)
-            if len(out) >= n:
+            if len(out) >= len(tpls) + 2:
                 break
-        # paling disukai: panjang 50-80 karakter (lengkap tapi tidak terpotong di layar HP)
-        return sorted(out, key=lambda t: abs(len(t) - 65))
+        # semua pola dicoba dulu, lalu yang paling dekat ~88 karakter dipilih (tetap <= 100, batas YouTube)
+        return sorted(out, key=lambda t: abs(len(t) - TARGET_LEN))[:n]
 
     judul_en, judul_id = kandidat("en"), kandidat("id")
     chapter = chapters(c["menit"] * 60, sections, rng)

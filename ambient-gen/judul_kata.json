@@ -291,14 +291,19 @@
       "{durasi} of {mood} Space Ambient · {melodi} for {tujuan}",
       "{citra} | {mood2} {melodi} & Cosmic Drones to {verb}",
       "{mood} {citra} · Ambient Music for {tujuan} ({durasi})",
-      "{citra} — {mood} Ambient Soundscape for {tujuan} · {durasi}"
+      "{citra} — {mood} Ambient Soundscape for {tujuan} · {durasi}",
+      "{citra} · {mood} and {mood2} Space Ambient with {melodi} for {tujuan} ({durasi})",
+      "{mood} {citra} · {durasi} of Slow Space Ambient with {melodi} and Cosmic Drones for {tujuan}",
+      "{citra} — {durasi} of {mood} Ambient Music with {melodi} for {tujuan} and Calm Nights"
     ],
     "id": [
       "{citra} · Musik Ambient {mood} dengan {melodi} untuk {tujuan} ({durasi})",
       "{durasi} Musik Luar Angkasa yang {mood} · {melodi} untuk {tujuan}",
       "{citra} | Ambient {mood} untuk {tujuan} · {durasi}",
       "{citra} — Musik Ambient {mood} untuk {tujuan} ({durasi})",
-      "{citra} · {melodi} dan Ambient {mood} untuk {tujuan}"
+      "{citra} · {melodi} dan Ambient {mood} untuk {tujuan}",
+      "{citra} · Musik Ambient Luar Angkasa yang {mood} dengan {melodi} untuk {tujuan} ({durasi})",
+      "{citra} — {durasi} Musik Ambient {mood} dan {mood2} dengan {melodi} untuk {tujuan}"
     ]
   },
   "terlarang": [
@@ -317,5 +322,6 @@
     "menyembuhkan",
     "miracle",
     "dna"
-  ]
+  ],
+  "_catatan_panjang": "Judul diutamakan panjang & deskriptif (target ~88 karakter, maks 100 = batas YouTube). Bagian terpenting (citra & suasana) di depan karena HP hanya menampilkan ~60-70 karakter."
 }
