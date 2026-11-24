@@ -34,8 +34,17 @@ Ambil program dan pasang komponennya:
 ```bash
 git clone https://github.com/mastoppink/ambient-audio.git
 cd ambient-audio/ambient-gen
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
+Perintah `venv` membuat "ruang terpisah" khusus program ini, supaya paket-paketnya tidak bentrok
+dengan program Python lain di komputermu. Setiap kali membuka Terminal baru, aktifkan lagi dulu:
+```bash
+cd ambient-audio/ambient-gen
+source .venv/bin/activate
+```
+(Di Windows: `.venv\Scripts\activate`.)
 
 Semua perintah di bawah dijalankan dari folder `ambient-gen`.
 
@@ -295,7 +304,8 @@ dan tidak ada nada sumbang. File hasil ekspor Studio web juga bisa diperiksa: `p
 
 | Gejala | Solusi |
 |---|---|
-| `ModuleNotFoundError` | Jalankan lagi `pip install -r requirements.txt` |
+| `ModuleNotFoundError` | Aktifkan dulu `source .venv/bin/activate`, lalu `pip install -r requirements.txt` |
+| Pesan `dependency conflicts` saat install | Paket program lain ikut terpengaruh. Pasang di virtual environment (bagian 1) |
 | MP3 tidak dibuat | ffmpeg belum terpasang (lihat bagian 1) |
 | Render lama / komputer berat | Tambahkan `--workers 2` supaya hanya memakai 2 core |
 | Disk penuh | Render 60 menit butuh sekitar 2,5 GB sementara; hapus isi `out/` yang tidak dipakai |
