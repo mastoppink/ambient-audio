@@ -92,8 +92,8 @@ Skor di bawah 60% berarti jelas berbeda. Di atas 75% terlalu mirip.
 python buat.py --untuk tidur --jumlah 1 --menit 180
 ```
 Render 3 jam butuh sekitar 27 menit di komputer 4 core (termasuk MP3, laporan kualitas, dan judul),
-ruang disk kosong sekitar 7 GB selama proses (hasil akhirnya: WAV 3,1 GB dan MP3 432 MB), dan RAM sekitar
-1,6 GB, sama seperti video 1 jam. Judul, deskripsi, dan chapter
+ruang disk kosong sekitar 7 GB selama proses (file sementara dihapus otomatis; yang tersimpan hanya MP3 432 MB),
+dan RAM sekitar 1,6 GB, sama seperti video 1 jam. Judul, deskripsi, dan chapter
 otomatis menyesuaikan ("3 Hours", chapter dengan format jam). Di Studio web, pilih durasinya di bagian
 **03 Resep**.
 
@@ -105,12 +105,12 @@ otomatis menyesuaikan ("3 Hours", chapter dengan format jam). Di Studio web, pil
 python generate.py presets/nebula.toml
 ```
 
-Hasilnya muncul di folder `out/`. Lama render sekitar 10 menit untuk 60 menit musik di komputer 4 core (termasuk MP3), tergantung kecepatan komputer.
+Hasilnya muncul di folder `out/`. Bawaannya hanya MP3 yang disimpan (YouTube toh mengompres ulang audionya);
+WAV 24-bit hanya dipakai sementara selama proses. Tambahkan `--simpan-wav` kalau butuh WAV, misalnya untuk diedit. Lama render sekitar 10 menit untuk 60 menit musik di komputer 4 core (termasuk MP3), tergantung kecepatan komputer.
 
 | File | Kegunaan |
 |---|---|
 | **`.mp3`** | **Untuk diupload / dipakai di aplikasi video** (320 kbps, sudah dimastering) |
-| `.wav` | Kualitas penuh (24-bit), untuk arsip |
 | `.toml` | "Resep" lagu ini: bisa dipakai untuk membuat ulang hasil yang persis sama |
 | `.judul.txt` | Pilihan judul (Inggris & Indonesia), deskripsi dengan chapter, tag, dan hashtag YouTube |
 | `.qc.txt`, `.qc.png` | Laporan kualitas suara (volume, puncak, keseimbangan nada) |
@@ -166,7 +166,8 @@ Bagian awal versi 60 menit akan sama persis dengan preview yang kamu pilih.
 | `--set` | `--set melody.density=0.3` | Ubah pengaturan tanpa mengedit file |
 | `--flac16` | | Juga simpan FLAC 16-bit (lossless, lebih kecil) |
 | `--flac` | | Juga simpan FLAC 24-bit |
-| `--no-mp3` | | Jangan buat MP3 |
+| `--simpan-wav` | | Simpan juga WAV 24-bit (bawaan: hanya MP3, supaya hemat ruang) |
+| `--no-mp3` | | Jangan buat MP3 (WAV disimpan) |
 | `--outdir` | `--outdir hasil` | Folder hasil (bawaan: `out`) |
 | `--dry-run` | | Tampilkan pengaturan akhir tanpa render |
 

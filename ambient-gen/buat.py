@@ -140,7 +140,7 @@ def tampilkan(rencana, log=print):
 
 
 # ---------- render ----------
-def render(rencana, contoh=False, log=print):
+def render(rencana, contoh=False, log=print, simpan_wav=False):
     from generate import render_resolved
     katalog = baca_katalog()
     hasil = []
@@ -152,7 +152,7 @@ def render(rencana, contoh=False, log=print):
         stem = os.path.join(folder, f"{v['preset']}_{v['nada'].replace('#', 'is')}_{v['seed']}")
         log(f"\n[{v['no']}/{len(rencana)}] {v['judul']}" + ("  (contoh 2 menit)" if contoh else ""))
         r = json.loads(json.dumps(v["resep"]))
-        _, _, _ = render_resolved(r, v["seed"], menit * 60, v["menit"] * 60, stem, log=log)
+        _, _, _ = render_resolved(r, v["seed"], menit * 60, v["menit"] * 60, stem, log=log, keep_wav=simpan_wav)
         # judul final memakai audio yang sudah jadi (kecerahan terukur, jumlah nada, babak -> chapter)
         hindari = [k.get("judul", "") for k in katalog]
         jd = judul.dari_file(stem + ".toml", v.get("tujuan"), hindari=hindari)
@@ -219,6 +219,7 @@ def main():
     ap.add_argument("--contoh", action="store_true", help="buat contoh 2 menit dulu")
     ap.add_argument("--lanjut", action="store_true", help="buat versi penuh dari rencana/contoh terakhir")
     ap.add_argument("--ya", action="store_true", help="jangan minta konfirmasi")
+    ap.add_argument("--simpan-wav", action="store_true", help="simpan juga WAV 24-bit (bawaan: hanya MP3)")
     a = ap.parse_args()
 
     if a.lanjut:
@@ -228,7 +229,7 @@ def main():
             rencana = json.load(f)
         print("Membuat versi penuh dari rencana terakhir:")
         tampilkan(rencana)
-        render(rencana)
+        render(rencana, simpan_wav=a.simpan_wav)
         print(f"\nSelesai. Hasil ada di {OUT}")
         return
 
@@ -247,7 +248,7 @@ def main():
     with open(RENCANA, "w") as f:
         json.dump(rencana, f, indent=1)
     t0 = time.time()
-    render(rencana, contoh=contoh)
+    render(rencana, contoh=contoh, simpan_wav=a.simpan_wav)
     print(f"\nSelesai dalam {(time.time() - t0) / 60:.1f} menit. Hasil ada di {OUT}")
     if contoh:
         print("Dengarkan contohnya. Kalau suka, buat versi penuh dengan:  python buat.py --lanjut")

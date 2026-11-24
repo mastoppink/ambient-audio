@@ -29,7 +29,8 @@ def main():
     ap.add_argument("--stems", action="store_true", help="simpan tiap lapisan kering")
     ap.add_argument("--outdir", default="out")
     ap.add_argument("--workers", type=int, help="jumlah proses paralel (default: semua core)")
-    ap.add_argument("--no-mp3", action="store_true")
+    ap.add_argument("--no-mp3", action="store_true", help="jangan buat MP3 (WAV disimpan)")
+    ap.add_argument("--simpan-wav", action="store_true", help="simpan juga WAV 24-bit (bawaan: hanya MP3, hemat ruang)")
     ap.add_argument("--flac", action="store_true", help="juga simpan FLAC 24-bit (lossless)")
     ap.add_argument("--flac16", action="store_true", help="juga simpan FLAC 16-bit + dither (lebih kecil)")
     ap.add_argument("--no-qc", action="store_true", help="lewati laporan kualitas")
@@ -58,11 +59,12 @@ def main():
               f"{r['key']['tonic']} {r['key']['mode']}")
         full = (a.duration or base["duration_min"]) * 60   # durasi versi panjang
         render_resolved(r, seed, total, max(full, total), stem, stems=a.stems, workers=a.workers,
-                        mp3=not a.no_mp3, flac=a.flac, flac16=a.flac16, qc=not a.no_qc)
+                        mp3=not a.no_mp3, flac=a.flac, flac16=a.flac16, qc=not a.no_qc,
+                        keep_wav=a.simpan_wav)
 
 
 def render_resolved(r, seed, total, full, stem, stems=False, workers=None, mp3=True, flac=False,
-                    flac16=False, qc=True, log=print):
+                    flac16=False, qc=True, log=print, keep_wav=False):
     """Render satu preset yang sudah di-resolve. Dipakai generate.py dan buat.py."""
     settings.apply(r)
     text = settings.to_toml(r)
@@ -81,7 +83,11 @@ def render_resolved(r, seed, total, full, stem, stems=False, workers=None, mp3=T
             f.write(judul.teks(judul.dari_file(f"{stem}.toml")))
     except Exception as err:   # judul tidak boleh menggagalkan render
         log(f"  (judul tidak dibuat: {err})")
-    ext = "wav" + ("/.mp3" if mp3 else "") + ("/.flac" if flac else "") + ("/.16bit.flac" if flac16 else "")
+    # hemat ruang: WAV hanya dipakai selama proses (mastering, cek puncak MP3, laporan kualitas, FLAC)
+    keep = keep_wav or not mp3
+    if not keep and os.path.exists(f"{stem}.wav"):
+        os.remove(f"{stem}.wav")
+    ext = ("wav/." if keep else "") + ("mp3" if mp3 else "") + ("/.flac" if flac else "") + ("/.16bit.flac" if flac16 else "")
     log(f"  -> {stem}.{ext}/.toml/.judul.txt  ({lufs:.1f} LUFS, {time.time() - t0:.0f}s)")
     return lufs, qc_text, events
 

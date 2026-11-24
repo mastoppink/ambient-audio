@@ -112,7 +112,7 @@ def main():
     for name in presets:
         print(f"\n== {name} ({a.menit:g} menit)", flush=True)
         subprocess.run([sys.executable, os.path.join(ROOT, "generate.py"), os.path.join(ROOT, "presets", f"{name}.toml"),
-                        "--duration", str(a.menit), "--outdir", a.outdir, "--no-qc"],
+                        "--duration", str(a.menit), "--outdir", a.outdir, "--no-qc", "--simpan-wav"],
                        check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         stem = sorted(glob.glob(os.path.join(a.outdir, f"{name}_s*_{int(a.menit * 60)}s.wav")))[-1][:-4]
         with open(stem + ".toml", "rb") as f:
