@@ -49,7 +49,7 @@ export class Engine {
     this.t0 = start ?? ctx.currentTime + 0.15;
     this.shape = makeShape(total, seed, P.form);
     this.sections = this._sections(P);
-    this.comp = new Composer(P, seed, this.shape, this.sections);
+    this.comp = new Composer(P, seed, this.shape, this.sections, total);
     this.scheduledChord = 0; this.droneChunk = 0; this.texChunk = 0; this.nodes = new Set();
     this.voices = [];               // pad/drone yang dijadwalkan: untuk diubah langsung
     this._build();

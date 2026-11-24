@@ -27,6 +27,7 @@ chord_weights = { vi = 2.5, vii = 0.5 }   # bVI = warna sendu Aeolian
 brightness = 0.25
 
 [melody]
+thin_end = 0.4
 timbre = "piano"
 phrases = 0.1
 consonance = 1.0

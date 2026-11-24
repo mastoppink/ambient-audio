@@ -46,6 +46,7 @@ DEFAULTS = {
         "decay": 9.0,
         "register": 0.5,             # 0 rendah .. 1 tinggi
         "timbre": "soft",            # soft / glass / kalimba / piano
+        "thin_end": 0.0,             # 0..1 melodi makin jarang di paruh akhir lagu (1 = hilang di akhir)
         "phrases": 0.0,              # 0..1 peluang nada menjadi frasa pendek 2-3 nada
         "consonance": 0.0,           # 0 bebas (lama) / 1 hindari nada 1 semiton dari chord & drone
     },
@@ -203,7 +204,7 @@ def apply(r):
     config.MELODY = dict(config.MELODY, gap=(mean_gap * 0.5, mean_gap * 1.5),
                          range=(lo, lo + 24), decay=m["decay"], level=mix["melody"],
                          timbre=str(m["timbre"]), phrase_prob=float(m["phrases"]),
-                         consonance=float(m["consonance"]))
+                         consonance=float(m["consonance"]), thin_end=float(m["thin_end"]))
     if config.MELODY["timbre"] not in ("soft", "glass", "kalimba", "piano"):
         raise ValueError(f"melody.timbre {m['timbre']!r} tidak dikenal; pilih soft/glass/kalimba/piano")
 

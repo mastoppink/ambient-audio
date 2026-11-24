@@ -146,6 +146,16 @@ def _allowed_at(t, ring, chords):
     return allowed
 
 
+def thin_factor(t):
+    """Penipisan melodi menjelang akhir (melody.thin_end): mulai di 45% lagu, turun halus sampai akhir."""
+    k = config.MELODY.get("thin_end", 0.0)
+    L = getattr(config, "SONG_TOTAL", None)
+    if not k or not L:
+        return 1.0
+    u = min(max((t / L - 0.45) / 0.5, 0.0), 1.0)
+    return 1.0 - k * u * u * (3 - 2 * u)
+
+
 def melody(total, rng, chords):
     """Nada jarang: random walk berbobot pada skala, condong ke nada chord yang sedang bunyi.
 
@@ -181,7 +191,7 @@ def melody(total, rng, chords):
         steps = rng.choice([-2, -1, 1, 2], size=2, p=[.2, .35, .3, .15])
         spacing = rng.uniform(0.7, 1.9, size=2)
         sec = config.SECTIONS.at(t) if getattr(config, "SECTIONS", None) is not None else None
-        dens = sec["melody"] if sec else 1.0
+        dens = (sec["melody"] if sec else 1.0) * thin_factor(t)
         reg = sec["register"] if sec else 0
         if (config.SHAPE is None or keep < (0.3 + 0.9 * float(config.SHAPE(t))) * dens) and dens > 0:
             if reg:   # babak ini: melodi digeser beberapa langkah tangga nada (jalan acaknya tidak berubah)

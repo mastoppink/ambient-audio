@@ -28,6 +28,7 @@ brightness = 0.2
 sub = 0.35
 
 [melody]
+thin_end = 0.85      # melodi makin jarang menjelang akhir: tidak membangunkan
 timbre = "piano"
 phrases = 0.3
 consonance = 1.0

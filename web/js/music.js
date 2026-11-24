@@ -116,7 +116,7 @@ export function technical(r, data) {
       sub: 0.6 * r.drone.sub, attack: data.drone_base.attack },
     melody: { level: mix.melody, timbre: m.timbre, decay: m.decay, range: [mlo, mlo + 24],
       gap: [meanGap * 0.5, meanGap * 1.5], restProb: 0.25, phraseProb: m.phrases,
-      consonance: m.consonance > 0, attack: data.melody_attack },
+      consonance: m.consonance > 0, attack: data.melody_attack, thinEnd: m.thin_end ?? 0 },
     texture: { level: mix.texture, bandLo: lerpLog(120, 600, r.texture.brightness),
       bandHi: lerpLog(1500, 7000, r.texture.brightness), periods: data.texture_base.lfo_periods,
       shapeAmount: fm.amount },
@@ -224,8 +224,10 @@ export function chordLabel(P, name) {
 }
 
 export class Composer {
-  constructor(P, seed, shape, sections = null) {
+  constructor(P, seed, shape, sections = null, total = null) {
     this.P = P; this.shape = shape; this.sections = sections;
+    const k = P.melody.thinEnd || 0;   // melodi makin jarang menjelang akhir (lihat compose.thin_factor)
+    this.thin = (t) => { if (!k || !total) return 1; const u = Math.min(1, Math.max(0, (t / total - 0.45) / 0.5)); return 1 - k * u * u * (3 - 2 * u); };
     this.seed = seed;
     this._weights();
     this.rc = rngFor(seed, "chords"); this.rm = rngFor(seed, "melody");
@@ -350,7 +352,8 @@ export class Composer {
       const keep = r(), isPhrase = r() < M.phraseProb, nExtra = 1 + r.int(2);
       const steps = [r.choice([-2, -1, 1, 2], [0.2, 0.35, 0.3, 0.15]), r.choice([-2, -1, 1, 2], [0.2, 0.35, 0.3, 0.15])];
       const spacing = [r.uniform(0.7, 1.9), r.uniform(0.7, 1.9)];
-      const sec = this.sections?.at(tm), dens = sec ? sec.melody : 1, reg = sec ? sec.register : 0;
+      const sec = this.sections?.at(tm), reg = sec ? sec.register : 0;
+      const dens = (sec ? sec.melody : 1) * this.thin(tm);
       let base = this.mIdx;
       if (dens > 0 && keep < (0.3 + 0.9 * this.shape(tm)) * dens) {
         if (reg) {   // babak ini: melodi digeser beberapa langkah (jalan acaknya tidak berubah)

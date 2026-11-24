@@ -44,6 +44,7 @@ def produce(stem, total, seed, form=None, form_total=None, fade_out=30.0, stems=
     config.SHAPE = make_shape(form_total or total, seed, form) if form else None
     config.SECTIONS = (Sections(form_total or total, seed, config.VARIATION, config.MELODY["level"] > 0)
                        if config.VARIATION > 0 else None)
+    config.SONG_TOTAL = form_total or total   # durasi versi panjang: dipakai penipisan melodi di akhir
     events = compose(total, seed, with_melody=True)
     total_n = int(total * SR)
     seg = int(config.SEGMENT_SECONDS * SR)

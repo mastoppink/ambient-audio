@@ -102,3 +102,6 @@ COMFORT = dict(breath=0.0, breath_period=14.0, tame=0.0)
 # --- Lapisan awan (synth.cloud_segment) ---
 CLOUD = dict(level=0.0, density=10.0, length=0.25, octaves=(1, 1, 2))
 CHORD_TIMELINE = None     # diisi compose(): progresi chord untuk lapisan awan
+
+# durasi lagu penuh (detik), diisi pipeline; dipakai penipisan melodi di akhir
+SONG_TOTAL = None

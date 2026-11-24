@@ -31,6 +31,7 @@ const CONTROLS = {
     ["melody.phrases", "Frasa", 0, 1, 0.01, "nada tunggal → frasa 2–3 nada"],
     ["melody.register", "Tinggi nada", 0, 1, 0.01, "rendah → tinggi"],
     ["melody.decay", "Panjang nada", 3, 16, 0.5, "detik"],
+    ["melody.thin_end", "Menipis di akhir", 0, 1, 0.01, "tetap → hilang di akhir"],
   ],
   Ruang: [
     ["space.reverb_mix", "Gema", 0, 1, 0.01, "kering → luas"],
